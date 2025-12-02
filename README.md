@@ -71,23 +71,6 @@ Configure external API keys at [adverant.ai/settings/external-keys](https://adve
 - **Anthropic** - Optional, direct Claude access
 - **OpenAI** - Optional, direct GPT access
 
-## Development
-
-```bash
-# Clone
-git clone git@github.com:adverant/nexus-cursor-plugin.git
-cd nexus-cursor-plugin
-
-# Install
-npm install
-
-# Build
-npm run build
-
-# Test locally
-NEXUS_API_KEY=your_key npm start
-```
-
 ## License
 
 Proprietary - Adverant Inc.

@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "nexus": {
+      "command": "npx",
+      "args": ["-y", "@adverant/nexus-cursor-plugin"],
+      "env": {
+        "NEXUS_API_KEY": "YOUR_API_KEY_HERE",
+        "NEXUS_ENDPOINT": "https://api.adverant.ai"
+      }
+    }
+  }
+}
