@@ -1,12 +1,41 @@
 {
   "name": "@adverant/nexus-cursor-plugin",
   "version": "0.1.0",
-  "description": "GraphRAG-powered code intelligence for Cursor IDE",
+  "description": "GraphRAG-powered code intelligence for Cursor IDE via Model Context Protocol",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
     "nexus-cursor": "./dist/index.js"
   },
+  "homepage": "https://github.com/adverant/nexus-cursor-plugin#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adverant/nexus-cursor-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adverant/nexus-cursor-plugin/issues",
+    "email": "support@adverant.ai"
+  },
+  "author": {
+    "name": "Adverant Inc.",
+    "email": "support@adverant.ai",
+    "url": "https://adverant.ai"
+  },
+  "license": "MIT",
+  "keywords": [
+    "cursor",
+    "mcp",
+    "model-context-protocol",
+    "graphrag",
+    "code-intelligence",
+    "ai",
+    "tree-sitter",
+    "ast",
+    "code-analysis",
+    "knowledge-graph",
+    "semantic-search",
+    "code-navigation"
+  ],
   "scripts": {
     "build": "tsc",
     "dev": "tsx watch src/index.ts",

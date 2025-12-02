@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://docs.adverant.ai/cursor-plugin
+    about: Check our documentation for answers
+  - name: Discord Community
+    url: https://discord.gg/adverant
+    about: Ask questions and get help from the community
+  - name: Feature Discussion
+    url: https://github.com/adverant/nexus-cursor-plugin/discussions
+    about: Discuss ideas and features with the community

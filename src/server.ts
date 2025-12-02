@@ -11,15 +11,41 @@ import type { NexusConfig, AuthContext } from './types.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
+/**
+ * Interface for MCP Server to enable dependency injection and testing.
+ * This allows us to inject mock servers for testing without ESM module mocking.
+ */
+export interface MCPServer {
+  setRequestHandler: (schema: unknown, handler: (request: any) => Promise<any>) => void;
+  connect: (transport: unknown) => Promise<void>;
+  close?: () => Promise<void>;
+}
+
+/**
+ * Factory function type for creating MCP servers.
+ * Used for dependency injection in testing.
+ */
+export type MCPServerFactory = (
+  serverInfo: { name: string; version: string },
+  options: { capabilities: { tools: Record<string, unknown> } }
+) => MCPServer;
+
+/**
+ * Default server factory using the real MCP SDK Server.
+ */
+export const defaultServerFactory: MCPServerFactory = (serverInfo, options) => {
+  return new Server(serverInfo, options) as MCPServer;
+};
+
 export class NexusCursorServer {
-  private server: Server;
+  private server: MCPServer;
   private config: NexusConfig;
   private authContext: AuthContext | null = null;
   private initialized = false;
 
-  constructor(config: NexusConfig) {
+  constructor(config: NexusConfig, serverFactory: MCPServerFactory = defaultServerFactory) {
     this.config = config;
-    this.server = new Server(
+    this.server = serverFactory(
       {
         name: 'nexus-cursor-plugin',
         version: '0.1.0',

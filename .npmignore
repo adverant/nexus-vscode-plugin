@@ -1,0 +1,33 @@
+# Source files (use dist/ instead)
+src/
+tests/
+
+# Development files
+.github/
+docs/
+*.md
+!README.md
+!LICENSE
+!CHANGELOG.md
+
+# Config files
+.eslintrc*
+.prettierrc*
+tsconfig.json
+vitest.config.ts
+.editorconfig
+
+# Test and coverage
+coverage/
+*.test.ts
+*.spec.ts
+
+# IDE and OS
+.idea/
+.vscode/
+.DS_Store
+
+# Other
+.env*
+*.log
+.turbo/

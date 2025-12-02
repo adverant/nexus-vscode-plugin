@@ -312,7 +312,7 @@ export function testFunc() {}
   });
 
   describe('error handling', () => {
-    it('should return null for non-existent file (detectLanguage fails on read error)', async () => {
+    it('should return null for non-existent file', async () => {
       const nonExistentFile = join(testDir, 'does-not-exist.txt');
 
       // File doesn't exist, and detectLanguage would return null for .txt anyway
@@ -320,7 +320,31 @@ export function testFunc() {}
       expect(result).toBeNull();
     });
 
-    it('should handle malformed code gracefully (if parser available)', async () => {
+    it('should throw error for non-existent file with supported extension', async () => {
+      // Test with a .py file (Python parser is available)
+      const nonExistentFile = join(testDir, 'does-not-exist.py');
+
+      // Parser throws ENOENT for non-existent files with supported extension
+      await expect(service.parseFile(nonExistentFile)).rejects.toThrow('ENOENT');
+    });
+
+    it('should handle malformed code gracefully (Python parser)', async () => {
+      // Use Python since its parser is available
+      const malformedFile = join(testDir, 'malformed.py');
+      const malformedCode = `
+class Incomplete:
+    def method(self
+        # Missing closing paren and colon
+`;
+      await writeFile(malformedFile, malformedCode);
+
+      // Parser should handle malformed code gracefully - may return partial result or null
+      const result = await service.parseFile(malformedFile);
+      // Result can be null (parse failed) or non-null (parser handled malformed code)
+      expect([null, 'object']).toContain(typeof result);
+    });
+
+    it('should handle malformed TypeScript code gracefully (if parser available)', async () => {
       const malformedFile = join(testDir, 'malformed.ts');
       const malformedCode = `
 export class {

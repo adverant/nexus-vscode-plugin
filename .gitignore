@@ -1,8 +1,60 @@
+# Dependencies
 node_modules/
+
+# Build output
 dist/
+build/
+*.tsbuildinfo
+
+# Environment files
 .env
 .env.local
-*.log
+.env.*.local
+.env.development
+.env.test
+.env.production
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
 .DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test coverage
 coverage/
+.nyc_output/
+
+# Cache
 .turbo/
+.eslintcache
+.cache/
+*.cache
+
+# Native binaries (tree-sitter)
+*.node
+prebuilds/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Package tarballs
+*.tgz
+
+# Editor backup files
+*~
+\#*\#

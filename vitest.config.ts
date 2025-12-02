@@ -9,5 +9,8 @@ export default defineConfig({
       reporter: ['text', 'json', 'html'],
       exclude: ['node_modules/', 'dist/', '**/*.test.ts', '**/__tests__/**'],
     },
+    // Pool settings for proper isolation
+    pool: 'forks',
+    isolate: true,
   },
 });

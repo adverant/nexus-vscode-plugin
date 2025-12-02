@@ -350,12 +350,14 @@ export class RepositoryIndexer {
     // Create IMPORTS relationships
     for (const importNode of parsed.imports) {
       try {
-        // Find the imported file
-        const importedFile = this.resolveImport(parsed.path, importNode.source);
-        if (!importedFile) continue;
+        // Find the imported file - try all possible extensions
+        const possiblePaths = this.resolveImportPaths(parsed.path, importNode.source);
+        if (possiblePaths.length === 0) continue;
 
-        // Find the matching parsed file
-        const targetParsed = allParsedFiles.find(pf => pf.file === importedFile);
+        // Find the matching parsed file from any of the possible paths
+        const targetParsed = allParsedFiles.find(pf =>
+          possiblePaths.some(path => pf.file === path)
+        );
         if (!targetParsed) continue;
 
         const targetFileEntityId = targetParsed.entityIds.get('__file__');
@@ -381,31 +383,26 @@ export class RepositoryIndexer {
     }
   }
 
-  private resolveImport(fromFile: string, importSource: string): string | null {
-    // Simplified import resolution - in production, this would be more sophisticated
-    if (importSource.startsWith('.')) {
-      // Relative import
-      const fromDir = dirname(fromFile);
-      let resolved = join(fromDir, importSource);
+  private resolveImportPaths(fromFile: string, importSource: string): string[] {
+    // Returns all possible file paths for a relative import
+    if (!importSource.startsWith('.')) {
+      return [];
+    }
 
-      // Try common extensions
-      const extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java'];
-      for (const ext of extensions) {
-        if (resolved.endsWith(ext)) {
-          return resolved;
-        }
-      }
+    // Relative import
+    const fromDir = dirname(fromFile);
+    const resolved = join(fromDir, importSource);
 
-      // Try adding extensions
-      for (const ext of extensions) {
-        const withExt = resolved + ext;
-        // In production, you'd check if file exists
-        // For now, we return the first attempt
-        return withExt;
+    // If import already has an extension, return it directly
+    const extensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java'];
+    for (const ext of extensions) {
+      if (resolved.endsWith(ext)) {
+        return [resolved];
       }
     }
 
-    return null;
+    // Return all possible paths with different extensions
+    return extensions.map(ext => resolved + ext);
   }
 
   private reportProgress(progress: IndexingProgress): void {

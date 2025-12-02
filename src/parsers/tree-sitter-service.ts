@@ -122,8 +122,26 @@ export class TreeSitterService {
   }
 
   private extractImportSource(node: Parser.SyntaxNode): string {
-    const sourceNode = node.descendantsOfType('string')[0];
-    return sourceNode?.text.replace(/['"]/g, '') || '';
+    // Different languages use different node types for import sources:
+    // - TypeScript/JavaScript: 'string' or 'string_fragment'
+    // - Go: 'interpreted_string_literal' or 'raw_string_literal'
+    // - Python: 'dotted_name' (for from X import Y)
+    // - Rust: 'use_wildcard' or 'scoped_identifier'
+    const stringTypes = [
+      'string',
+      'string_fragment',
+      'interpreted_string_literal',
+      'raw_string_literal',
+    ];
+
+    for (const type of stringTypes) {
+      const sourceNode = node.descendantsOfType(type)[0];
+      if (sourceNode?.text) {
+        return sourceNode.text.replace(/['"]/g, '');
+      }
+    }
+
+    return '';
   }
 
   private extractImportSpecifiers(node: Parser.SyntaxNode): string[] {
