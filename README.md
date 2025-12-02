@@ -11,6 +11,8 @@
   [![Tests](https://img.shields.io/badge/Tests-143%20passing-brightgreen)](.)
   [![MCP](https://img.shields.io/badge/MCP-1.0-purple)](https://modelcontextprotocol.io/)
 
+  **Version:** 1.1.0 | **Last Updated:** December 2, 2025
+
   [Features](#features) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Contributing](#contributing)
 </div>
 
@@ -40,13 +42,23 @@ Real-time vulnerability detection and security best practices analysis.
 ### 📊 **Multi-Language Support**
 Full support for TypeScript, JavaScript, Python, Go, Rust, and Java with tree-sitter parsing.
 
+## Pricing Tiers
+
+| Tier | Price | Features |
+|------|-------|----------|
+| **Open Source** | $0/mo | GraphRAG search, 50K queries/month, local memory |
+| **Shared Access** | $9/mo | + Knowledge Circles, BYOK MageAgent, cloud sync, plugin marketplace |
+| **Teams** | $199/mo | + SSO, admin controls, unlimited Knowledge Circles, priority support |
+| **Dedicated VPS** | $499/mo | + Dedicated infrastructure, unlimited queries, 99.95% SLA |
+
 ## Quick Start
 
 ### 1. Get Your API Key
 
-1. Sign up at [adverant.ai](https://adverant.ai)
-2. Go to Settings → API Keys
-3. Create a new API key for "Cursor IDE"
+1. Sign up at [adverant.ai/pricing](https://adverant.ai/pricing)
+2. Choose your plan (Free tier available!)
+3. Go to Settings → API Keys
+4. Create a new API key for "Cursor IDE"
 
 ### 2. Install & Configure
 
