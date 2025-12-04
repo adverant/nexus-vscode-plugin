@@ -18,6 +18,10 @@ build/
 .idea/
 .vscode/
 *.swp
+
+# AI Assistant Configuration (local only)
+.claude/
+CLAUDE.md
 *.swo
 *~
 
