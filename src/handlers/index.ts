@@ -21,3 +21,9 @@ export {
   type QueryResponse,
   type SemanticSearchResult,
 } from './query-handler.js';
+
+export {
+  VisualizationHandler,
+  VISUALIZATION_TOOLS,
+  createVisualizationHandler,
+} from './visualization-handler.js';

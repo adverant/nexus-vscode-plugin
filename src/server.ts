@@ -8,6 +8,15 @@ import {
 import { z } from 'zod';
 import pino from 'pino';
 import type { NexusConfig, AuthContext } from './types.js';
+import { GraphRAGClient } from './clients/graphrag-client.js';
+import { MageAgentClient } from './clients/mageagent-client.js';
+import { TreeSitterService } from './parsers/tree-sitter-service.js';
+import { GitService } from './git/git-service.js';
+import {
+  VisualizationHandler,
+  VISUALIZATION_TOOLS,
+  createVisualizationHandler,
+} from './handlers/index.js';
 
 const logger = pino({ level: process.env.LOG_LEVEL || 'info' });
 
@@ -43,6 +52,13 @@ export class NexusCursorServer {
   private authContext: AuthContext | null = null;
   private initialized = false;
 
+  // Service instances
+  private graphRAGClient: GraphRAGClient | null = null;
+  private mageAgentClient: MageAgentClient | null = null;
+  private treeSitterService: TreeSitterService | null = null;
+  private gitService: GitService | null = null;
+  private visualizationHandler: VisualizationHandler | null = null;
+
   constructor(config: NexusConfig, serverFactory: MCPServerFactory = defaultServerFactory) {
     this.config = config;
     this.server = serverFactory(
@@ -58,6 +74,49 @@ export class NexusCursorServer {
     );
 
     this.setupHandlers();
+  }
+
+  /**
+   * Initialize services lazily when needed
+   */
+  private async initializeServices(repoPath: string): Promise<void> {
+    if (this.visualizationHandler) {
+      return; // Already initialized
+    }
+
+    // Initialize GraphRAG client
+    this.graphRAGClient = new GraphRAGClient(
+      this.config.endpoint,
+      this.config.apiKey
+    );
+
+    // Initialize MageAgent client (optional)
+    try {
+      this.mageAgentClient = new MageAgentClient(
+        this.config.endpoint,
+        this.config.apiKey
+      );
+    } catch {
+      logger.warn('MageAgent client initialization failed, AI features may be limited');
+      this.mageAgentClient = null;
+    }
+
+    // Initialize Tree-sitter service
+    this.treeSitterService = new TreeSitterService();
+
+    // Initialize Git service
+    this.gitService = new GitService(repoPath);
+
+    // Initialize visualization handler
+    this.visualizationHandler = createVisualizationHandler(
+      this.graphRAGClient,
+      this.mageAgentClient,
+      this.treeSitterService,
+      this.gitService,
+      repoPath
+    );
+
+    logger.info({ repoPath }, 'Services initialized');
   }
 
   private setupHandlers(): void {
@@ -95,7 +154,8 @@ export class NexusCursorServer {
   }
 
   private getToolDefinitions() {
-    return [
+    // Core tools
+    const coreTools = [
       {
         name: 'nexus_health',
         description: 'Check connection to Nexus backend services',
@@ -192,6 +252,9 @@ export class NexusCursorServer {
         },
       },
     ];
+
+    // Combine core tools with visualization tools
+    return [...coreTools, ...VISUALIZATION_TOOLS];
   }
 
   private async authenticate(): Promise<void> {
@@ -249,6 +312,7 @@ export class NexusCursorServer {
   }
 
   private async executeTool(name: string, args: unknown): Promise<{ content: Array<{ type: string; text: string }> }> {
+    // Handle core tools
     switch (name) {
       case 'nexus_health':
         return this.handleHealth();
@@ -267,9 +331,103 @@ export class NexusCursorServer {
 
       case 'nexus_file_history':
         return this.handleFileHistory(args as { filePath: string; limit?: number });
+    }
+
+    // Handle visualization tools (nexusmind_* prefix)
+    if (name.startsWith('nexusmind_')) {
+      return this.handleVisualizationTool(name, args);
+    }
+
+    throw new Error(`Unknown tool: ${name}`);
+  }
+
+  /**
+   * Handle visualization tool calls
+   */
+  private async handleVisualizationTool(
+    name: string,
+    args: unknown
+  ): Promise<{ content: Array<{ type: string; text: string }> }> {
+    // Ensure services are initialized
+    const repoPath = process.cwd(); // Use current working directory
+    await this.initializeServices(repoPath);
+
+    if (!this.visualizationHandler) {
+      return {
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({ success: false, error: 'Visualization handler not initialized' }),
+          },
+        ],
+      };
+    }
+
+    switch (name) {
+      case 'nexusmind_dependency_graph':
+        return this.visualizationHandler.handleDependencyGraph(
+          args as {
+            rootFile: string;
+            depth?: number;
+            layout?: 'force' | 'hierarchical' | 'radial' | 'organic';
+            nodeTypes?: string[];
+            edgeTypes?: string[];
+            includeExternal?: boolean;
+          }
+        );
+
+      case 'nexusmind_evolution_timeline':
+        return this.visualizationHandler.handleEvolutionTimeline(
+          args as {
+            entity: string;
+            startDate?: string;
+            endDate?: string;
+            granularity?: string;
+            showAuthors?: boolean;
+          }
+        );
+
+      case 'nexusmind_impact_ripple':
+        return this.visualizationHandler.handleImpactRipple(
+          args as {
+            entityId: string;
+            maxDepth?: number;
+            includeTests?: boolean;
+            minimumImpactScore?: number;
+          }
+        );
+
+      case 'nexusmind_semantic_clusters':
+        return this.visualizationHandler.handleSemanticClusters(
+          args as {
+            query?: string;
+            algorithm?: string;
+            numClusters?: number;
+            minClusterSize?: number;
+            excludeTests?: boolean;
+          }
+        );
+
+      case 'nexusmind_architecture_analyze':
+        return this.visualizationHandler.handleArchitectureAnalyze(
+          args as {
+            targetPath?: string;
+            issueTypes?: string[];
+            minConfidence?: number;
+            includeRefactoringSuggestions?: boolean;
+          }
+        );
+
+      case 'nexusmind_nl_query':
+        return this.visualizationHandler.handleNLQuery(
+          args as {
+            query: string;
+            selectedNodes?: string[];
+          }
+        );
 
       default:
-        throw new Error(`Unknown tool: ${name}`);
+        throw new Error(`Unknown visualization tool: ${name}`);
     }
   }
 
