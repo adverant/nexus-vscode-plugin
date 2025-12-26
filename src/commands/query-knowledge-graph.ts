@@ -21,8 +21,7 @@ export async function queryKnowledgeGraphCommand(queryHandler: QueryHandler) {
       try {
         progress.report({ message: 'Searching codebase...' });
 
-        const result = await queryHandler.handleQuery({
-          query,
+        const result = await queryHandler.query(query, {
           limit: 10,
         });
 

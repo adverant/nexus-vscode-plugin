@@ -1,0 +1,228 @@
+{
+  "name": "nexus-vscode-plugin",
+  "displayName": "Nexus - GraphRAG Code Intelligence",
+  "version": "0.1.0",
+  "publisher": "adverant",
+  "description": "GraphRAG-powered code intelligence for VS Code with NexusMind visualization, episodic memory, and multi-model AI",
+  "main": "dist/extension.js",
+  "types": "dist/extension.d.ts",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=20.0.0"
+  },
+  "categories": [
+    "Machine Learning",
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "nexus.storeMemory",
+        "title": "Nexus: Store Memory",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.recallMemory",
+        "title": "Nexus: Recall Memory",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.showNexusMind",
+        "title": "Nexus: Show NexusMind Visualization",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.configure",
+        "title": "Nexus: Configure API Settings",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.indexRepository",
+        "title": "Nexus: Index Repository",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.queryKnowledgeGraph",
+        "title": "Nexus: Query Knowledge Graph",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.explainCode",
+        "title": "Nexus: Explain Code (with History)",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.impactAnalysis",
+        "title": "Nexus: Analyze Impact",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.fileHistory",
+        "title": "Nexus: Show File History",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.dependencyGraph",
+        "title": "NexusMind: Dependency Graph",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.evolutionTimeline",
+        "title": "NexusMind: Evolution Timeline",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.impactRipple",
+        "title": "NexusMind: Impact Ripple",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.semanticClusters",
+        "title": "NexusMind: Semantic Clusters",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.architectureAnalyze",
+        "title": "NexusMind: Analyze Architecture",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.nlQuery",
+        "title": "NexusMind: Natural Language Query",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.securityScan",
+        "title": "Nexus: Security Scan",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.generateTests",
+        "title": "Nexus: Generate Tests",
+        "category": "Nexus"
+      }
+    ],
+    "configuration": {
+      "title": "Nexus",
+      "properties": {
+        "nexus.apiEndpoint": {
+          "type": "string",
+          "default": "https://api.adverant.ai",
+          "description": "Nexus GraphRAG API endpoint URL"
+        },
+        "nexus.mageAgentEndpoint": {
+          "type": "string",
+          "default": "https://api.adverant.ai",
+          "description": "MageAgent API endpoint URL"
+        },
+        "nexus.autoIndex": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically index repository on open"
+        },
+        "nexus.maxFileSize": {
+          "type": "number",
+          "default": 1048576,
+          "description": "Maximum file size to index (in bytes, default 1MB)"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nexus",
+          "title": "Nexus",
+          "icon": "resources/nexus-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "nexus": [
+        {
+          "id": "nexusMemories",
+          "name": "Memories",
+          "icon": "resources/nexus-icon.svg",
+          "contextualTitle": "Nexus Memories"
+        },
+        {
+          "id": "nexusMind",
+          "name": "NexusMind",
+          "icon": "resources/nexus-icon.svg",
+          "contextualTitle": "NexusMind Visualization"
+        }
+      ]
+    }
+  },
+  "homepage": "https://github.com/adverant/nexus-vscode-plugin#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adverant/nexus-vscode-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/adverant/nexus-vscode-plugin/issues",
+    "email": "support@adverant.ai"
+  },
+  "author": {
+    "name": "Adverant Inc.",
+    "email": "support@adverant.ai",
+    "url": "https://adverant.ai"
+  },
+  "license": "MIT",
+  "keywords": [
+    "vscode",
+    "graphrag",
+    "code-intelligence",
+    "ai",
+    "nexusmind",
+    "visualization",
+    "tree-sitter",
+    "ast",
+    "code-analysis",
+    "knowledge-graph",
+    "semantic-search",
+    "code-navigation",
+    "episodic-memory",
+    "mageagent"
+  ],
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "axios": "^1.6.0",
+    "glob": "^13.0.0",
+    "pino": "^8.17.0",
+    "simple-git": "^3.22.0",
+    "tree-sitter": "^0.21.0",
+    "tree-sitter-go": "^0.21.0",
+    "tree-sitter-java": "^0.21.0",
+    "tree-sitter-python": "^0.21.0",
+    "tree-sitter-rust": "^0.21.0",
+    "tree-sitter-typescript": "^0.21.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.55.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.6.1"
+  }
+}

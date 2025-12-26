@@ -24,21 +24,17 @@ export async function indexRepositoryCommand(
       cancellable: true,
     },
     async (progress, token) => {
-      const indexer = new RepositoryIndexer(graphragClient, treeSitterService);
-
-      let filesProcessed = 0;
+      const indexer = new RepositoryIndexer(graphragClient, treeSitterService, {
+        progressCallback: (indexProgress) => {
+          progress.report({
+            message: indexProgress.message,
+            increment: indexProgress.total > 0 ? (1 / indexProgress.total) * 100 : 0,
+          });
+        },
+      });
 
       try {
-        const stats = await indexer.indexRepository(repoPath, {
-          onProgress: (current, total) => {
-            filesProcessed = current;
-            progress.report({
-              message: `Processing file ${current} of ${total}`,
-              increment: (1 / total) * 100,
-            });
-          },
-          signal: token,
-        });
+        const stats = await indexer.indexRepository(repoPath);
 
         vscode.window.showInformationMessage(
           `Repository indexed successfully!\n` +

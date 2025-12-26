@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { scanDependencies } from '../tools/security-scanner';
+import { SecurityScanner } from '../tools/security-scanner';
 
 export async function securityScanCommand() {
   const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -21,11 +21,15 @@ export async function securityScanCommand() {
       try {
         progress.report({ message: 'Scanning dependencies...' });
 
-        const vulnerabilities = await scanDependencies(repoPath);
+        const scanner = new SecurityScanner(repoPath);
+        const scanResult = await scanner.scan();
+
+        // Use reports directly instead of flattening
+        const reports = scanResult.reports;
 
         // Show results in a new document
         const doc = await vscode.workspace.openTextDocument({
-          content: formatSecurityReport(vulnerabilities),
+          content: formatSecurityReport(reports),
           language: 'markdown',
         });
 
@@ -34,39 +38,20 @@ export async function securityScanCommand() {
           viewColumn: vscode.ViewColumn.Beside,
         });
 
-        // Show diagnostics for vulnerabilities
-        const diagnosticCollection = vscode.languages.createDiagnosticCollection('nexus-security');
-        const diagnostics: vscode.Diagnostic[] = [];
-
-        for (const vuln of vulnerabilities) {
-          const severity = vuln.severity === 'CRITICAL' || vuln.severity === 'HIGH'
-            ? vscode.DiagnosticSeverity.Error
-            : vuln.severity === 'MEDIUM'
-            ? vscode.DiagnosticSeverity.Warning
-            : vscode.DiagnosticSeverity.Information;
-
-          const diagnostic = new vscode.Diagnostic(
-            new vscode.Range(0, 0, 0, 0),
-            `${vuln.package}@${vuln.version}: ${vuln.title} (${vuln.severity})`,
-            severity
-          );
-
-          diagnostic.source = 'Nexus Security';
-          diagnostics.push(diagnostic);
-        }
-
         // Show summary
-        const criticalCount = vulnerabilities.filter(v => v.severity === 'CRITICAL').length;
-        const highCount = vulnerabilities.filter(v => v.severity === 'HIGH').length;
+        if (scanResult.totalVulnerabilities > 0) {
+          const criticalCount = scanResult.severityCounts.CRITICAL || 0;
+          const highCount = scanResult.severityCounts.HIGH || 0;
 
-        if (criticalCount > 0 || highCount > 0) {
-          vscode.window.showWarningMessage(
-            `🔒 Security Scan: Found ${criticalCount} CRITICAL and ${highCount} HIGH severity vulnerabilities`
-          );
-        } else if (vulnerabilities.length > 0) {
-          vscode.window.showInformationMessage(
-            `🔒 Security Scan: Found ${vulnerabilities.length} vulnerabilities (none critical)`
-          );
+          if (criticalCount > 0 || highCount > 0) {
+            vscode.window.showWarningMessage(
+              `🔒 Security Scan: Found ${criticalCount} CRITICAL and ${highCount} HIGH severity vulnerabilities`
+            );
+          } else {
+            vscode.window.showInformationMessage(
+              `🔒 Security Scan: Found ${scanResult.totalVulnerabilities} vulnerabilities (none critical)`
+            );
+          }
         } else {
           vscode.window.showInformationMessage(
             '✅ Security Scan: No vulnerabilities found!'
@@ -81,54 +66,48 @@ export async function securityScanCommand() {
   );
 }
 
-function formatSecurityReport(vulnerabilities: any[]): string {
+function formatSecurityReport(reports: any[]): string {
   let markdown = `# Security Scan Report\n\n`;
   markdown += `**Scan Date**: ${new Date().toLocaleString()}\n\n`;
-  markdown += `**Total Vulnerabilities**: ${vulnerabilities.length}\n\n`;
 
-  if (vulnerabilities.length === 0) {
+  const totalVulns = reports.reduce((sum, r) => sum + r.vulnerabilities.length, 0);
+  markdown += `**Total Vulnerabilities**: ${totalVulns}\n\n`;
+
+  if (reports.length === 0 || totalVulns === 0) {
     markdown += `✅ **No vulnerabilities found!**\n`;
     return markdown;
   }
 
-  // Group by severity
-  const bySeverity = {
-    CRITICAL: vulnerabilities.filter(v => v.severity === 'CRITICAL'),
-    HIGH: vulnerabilities.filter(v => v.severity === 'HIGH'),
-    MEDIUM: vulnerabilities.filter(v => v.severity === 'MEDIUM'),
-    LOW: vulnerabilities.filter(v => v.severity === 'LOW'),
-  };
+  for (const report of reports) {
+    if (report.vulnerabilities.length === 0) continue;
 
-  for (const [severity, vulns] of Object.entries(bySeverity)) {
-    if (vulns.length === 0) continue;
+    markdown += `## ${report.dependency.name}@${report.dependency.version}\n\n`;
+    markdown += `**Ecosystem**: ${report.dependency.ecosystem}\n`;
+    markdown += `**File**: \`${report.dependency.filePath}\`\n\n`;
+    markdown += `### Vulnerabilities (${report.vulnerabilities.length})\n\n`;
 
-    const emoji = {
-      CRITICAL: '🔴',
-      HIGH: '🟠',
-      MEDIUM: '🟡',
-      LOW: '🟢',
-    }[severity];
+    for (const vuln of report.vulnerabilities) {
+      const emojiMap: Record<string, string> = {
+        CRITICAL: '🔴',
+        HIGH: '🟠',
+        MEDIUM: '🟡',
+        LOW: '🟢',
+        UNKNOWN: '⚪',
+      };
+      const emoji = emojiMap[vuln.severity] || '⚪';
 
-    markdown += `## ${emoji} ${severity} Severity (${vulns.length})\n\n`;
+      markdown += `#### ${emoji} ${vuln.severity}: ${vuln.summary}\n\n`;
 
-    for (const vuln of vulns) {
-      markdown += `### ${vuln.package}@${vuln.version}\n\n`;
-      markdown += `**Title**: ${vuln.title}\n\n`;
-
-      if (vuln.description) {
-        markdown += `**Description**: ${vuln.description}\n\n`;
+      if (vuln.details) {
+        markdown += `**Details**: ${vuln.details}\n\n`;
       }
 
-      if (vuln.cve) {
-        markdown += `**CVE**: ${vuln.cve}\n\n`;
+      if (vuln.cveIds && vuln.cveIds.length > 0) {
+        markdown += `**CVEs**: ${vuln.cveIds.join(', ')}\n\n`;
       }
 
-      if (vuln.fixedIn) {
-        markdown += `**Fixed In**: ${vuln.fixedIn}\n\n`;
-      }
-
-      if (vuln.recommendation) {
-        markdown += `**Recommendation**: ${vuln.recommendation}\n\n`;
+      if (vuln.fixedVersions && vuln.fixedVersions.length > 0) {
+        markdown += `**Fixed In**: ${vuln.fixedVersions.join(', ')}\n\n`;
       }
 
       markdown += `---\n\n`;

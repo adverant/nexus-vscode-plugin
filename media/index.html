@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus</title>
+    <link rel="stylesheet" href="{{mediaUri}}/main.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Tab Navigation -->
+        <div class="tabs">
+            <button class="tab active" data-tab="dashboard">Dashboard</button>
+            <button class="tab" data-tab="visualizations">Visualizations</button>
+            <button class="tab" data-tab="intelligence">Code Intelligence</button>
+            <button class="tab" data-tab="security">Security & Testing</button>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div class="tab-content active" id="dashboard">
+            <div class="section">
+                <h2>API Status</h2>
+                <div id="api-status" class="card">
+                    <div class="loading-spinner"></div>
+                    <p>Checking API connection...</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Quick Actions</h2>
+                <div class="action-grid">
+                    <button class="action-card" data-action="storeMemory">
+                        <span class="icon">💾</span>
+                        <h3>Store Memory</h3>
+                        <p>Save selected code to knowledge graph</p>
+                    </button>
+                    <button class="action-card" data-action="recallMemory">
+                        <span class="icon">🔍</span>
+                        <h3>Recall Memory</h3>
+                        <p>Search stored memories</p>
+                    </button>
+                    <button class="action-card" data-action="indexRepository">
+                        <span class="icon">📦</span>
+                        <h3>Index Repository</h3>
+                        <p>Build knowledge graph</p>
+                    </button>
+                    <button class="action-card" data-action="queryGraph">
+                        <span class="icon">💬</span>
+                        <h3>Query Graph</h3>
+                        <p>Ask questions about your code</p>
+                    </button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Recent Memories</h2>
+                <div id="recent-memories" class="card">
+                    <div class="loading-spinner"></div>
+                    <p>Loading recent memories...</p>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Repository Stats</h2>
+                <div id="repo-stats" class="card">
+                    <div class="loading-spinner"></div>
+                    <p>Loading statistics...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Visualizations Tab -->
+        <div class="tab-content" id="visualizations">
+            <div class="section">
+                <h2>Visualization Controls</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="viz-type">Visualization Type</label>
+                        <select id="viz-type">
+                            <option value="dependencyGraph">Dependency Graph</option>
+                            <option value="evolutionTimeline">Evolution Timeline</option>
+                            <option value="impactRipple">Impact Ripple</option>
+                            <option value="semanticClusters">Semantic Clusters</option>
+                            <option value="architecture">Architecture Analysis</option>
+                            <option value="nlQuery">Natural Language Query</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" id="file-path-group">
+                        <label for="file-path">File/Folder Path</label>
+                        <input type="text" id="file-path" placeholder="e.g., src/index.ts">
+                    </div>
+
+                    <div class="control-group" id="layout-group" style="display: none;">
+                        <label for="layout-algorithm">Layout Algorithm</label>
+                        <select id="layout-algorithm">
+                            <option value="force">Force-Directed</option>
+                            <option value="hierarchical">Hierarchical</option>
+                            <option value="radial">Radial</option>
+                            <option value="organic">Organic</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group" id="query-group" style="display: none;">
+                        <label for="nl-query">Natural Language Query</label>
+                        <input type="text" id="nl-query" placeholder="e.g., Show me all API endpoints">
+                    </div>
+
+                    <button id="generate-viz" class="primary-button">Generate Visualization</button>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Visualization</h2>
+                <div id="viz-container" class="viz-container">
+                    <div class="placeholder">
+                        <p>Configure settings above and click "Generate Visualization"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Code Intelligence Tab -->
+        <div class="tab-content" id="intelligence">
+            <div class="section">
+                <h2>Code Input</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="code-input">Code (or use current selection)</label>
+                        <textarea id="code-input" rows="10" placeholder="Paste code here or click 'Use Selection'"></textarea>
+                    </div>
+                    <div class="button-group">
+                        <button id="use-selection" class="secondary-button">Use Selection</button>
+                        <button id="explain-code" class="primary-button">Explain Code</button>
+                        <button id="analyze-impact" class="primary-button">Analyze Impact</button>
+                        <button id="view-history" class="primary-button">View History</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Results</h2>
+                <div id="intelligence-results" class="results-container">
+                    <div class="placeholder">
+                        <p>Results will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security & Testing Tab -->
+        <div class="tab-content" id="security">
+            <div class="section">
+                <h2>Security Scanner</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="repo-path">Repository Path</label>
+                        <input type="text" id="repo-path" placeholder="e.g., /Users/username/project">
+                    </div>
+                    <button id="run-security-scan" class="primary-button">Run Security Scan</button>
+                </div>
+                <div id="security-results" class="results-container">
+                    <div class="placeholder">
+                        <p>Security scan results will appear here</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Test Generator</h2>
+                <div class="controls">
+                    <div class="control-group">
+                        <label for="test-code-input">Code to Test</label>
+                        <textarea id="test-code-input" rows="8" placeholder="Paste code here"></textarea>
+                    </div>
+                    <div class="control-group">
+                        <label for="test-framework">Testing Framework</label>
+                        <select id="test-framework">
+                            <option value="jest">Jest</option>
+                            <option value="mocha">Mocha</option>
+                            <option value="vitest">Vitest</option>
+                            <option value="pytest">Pytest (Python)</option>
+                        </select>
+                    </div>
+                    <button id="generate-tests" class="primary-button">Generate Tests</button>
+                </div>
+                <div id="test-results" class="results-container">
+                    <div class="placeholder">
+                        <p>Generated tests will appear here</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="loading-overlay" style="display: none;">
+        <div class="loading-spinner large"></div>
+        <p id="loading-message">Processing...</p>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast" class="error-toast" style="display: none;">
+        <span id="error-message"></span>
+        <button id="close-error">×</button>
+    </div>
+
+    <script nonce="{{nonce}}" src="{{mediaUri}}/main.js"></script>
+</body>
+</html>

@@ -1,10 +1,9 @@
 {
-  "name": "@adverant/nexus-vscode-plugin",
+  "name": "nexus-vscode-plugin",
   "displayName": "Nexus - GraphRAG Code Intelligence",
   "version": "0.1.0",
   "publisher": "adverant",
   "description": "GraphRAG-powered code intelligence for VS Code with NexusMind visualization, episodic memory, and multi-model AI",
-  "icon": "docs/images/adverant-logo-icon.png",
   "main": "dist/extension.js",
   "types": "dist/extension.d.ts",
   "engines": {
@@ -106,6 +105,20 @@
         "command": "nexus.generateTests",
         "title": "Nexus: Generate Tests",
         "category": "Nexus"
+      },
+      {
+        "command": "nexus.openPanel",
+        "title": "Nexus: Open Panel",
+        "category": "Nexus",
+        "icon": "$(graph)"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "nexus.openPanel",
+        "key": "cmd+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "editorTextFocus"
       }
     ],
     "configuration": {
@@ -191,7 +204,6 @@
     "mageagent"
   ],
   "scripts": {
-    "vscode:prepublish": "npm run build",
     "build": "tsc -p ./",
     "watch": "tsc -watch -p ./",
     "package": "vsce package",

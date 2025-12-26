@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="docs/images/adverant-logo-final.svg" alt="Adverant Logo" width="240"/>
+  <img src="docs/images/adverant-logo-icon.png" alt="Adverant Logo" width="240"/>
 
   # Nexus VSCode Plugin
 

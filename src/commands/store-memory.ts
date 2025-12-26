@@ -25,13 +25,15 @@ export async function storeMemoryCommand(client: GraphRAGClient) {
   });
 
   try {
-    const result = await client.storeMemory({
-      content,
+    const result = await client.storeEntity({
+      domain: 'code',
+      entityType: 'memory',
+      textContent: content,
       tags: tags ? tags.split(',').map(t => t.trim()) : [],
     });
 
     vscode.window.showInformationMessage(
-      `Memory stored successfully! ID: ${result.memoryId.substring(0, 8)}...`
+      `Memory stored successfully! ID: ${result.entityId.substring(0, 8)}...`
     );
   } catch (error: any) {
     vscode.window.showErrorMessage(`Failed to store memory: ${error.message}`);

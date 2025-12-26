@@ -12,29 +12,29 @@ export async function recallMemoryCommand(client: GraphRAGClient, memoriesProvid
   }
 
   try {
-    const result = await client.recallMemory({ query, limit: 5 });
+    const results = await client.search(query, { limit: 5, domain: 'code' });
 
-    if (result.count === 0) {
+    if (results.length === 0) {
       vscode.window.showInformationMessage('No memories found');
       return;
     }
 
     // Show results in quick pick
-    const items = result.memories.map(m => ({
-      label: `$(file-code) ${m.content.substring(0, 80)}...`,
-      description: `Score: ${(m.score! * 100).toFixed(1)}%`,
-      detail: `Tags: ${m.tags.join(', ')} | ${m.timestamp}`,
-      memory: m,
+    const items = results.map((result: any) => ({
+      label: `$(file-code) ${result.content.substring(0, 80)}...`,
+      description: `Score: ${(result.score * 100).toFixed(1)}%`,
+      detail: `ID: ${result.id}`,
+      content: result.content,
     }));
 
     const selected = await vscode.window.showQuickPick(items, {
-      placeHolder: `Found ${result.count} memories`,
+      placeHolder: `Found ${results.length} memories`,
     });
 
     if (selected) {
       // Show full content in new document
       const doc = await vscode.workspace.openTextDocument({
-        content: selected.memory.content,
+        content: selected.content,
         language: 'markdown',
       });
       await vscode.window.showTextDocument(doc);

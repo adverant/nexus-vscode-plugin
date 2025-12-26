@@ -29,7 +29,9 @@ export async function fileHistoryCommand(gitService: GitService) {
       try {
         progress.report({ message: 'Fetching git history...' });
 
-        const history = await gitService.getFileHistory(repoPath, filePath, 50);
+        // Create git service with repo path
+        const repoGitService = new GitService(repoPath);
+        const history = await repoGitService.getFileHistory(filePath, 50);
 
         // Show history in a new document
         const doc = await vscode.workspace.openTextDocument({

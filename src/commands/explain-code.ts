@@ -29,12 +29,11 @@ export async function explainCodeCommand(episodicMemoryHandler: EpisodicMemoryHa
       try {
         progress.report({ message: 'Analyzing code history...' });
 
-        const explanation = await episodicMemoryHandler.explainCode({
+        const explanation = await episodicMemoryHandler.explainCode(
           filePath,
-          code: selectedText,
-          startLine: selection.start.line + 1,
-          endLine: selection.end.line + 1,
-        });
+          selection.start.line + 1,
+          selection.end.line + 1
+        );
 
         // Show explanation in a new document
         const doc = await vscode.workspace.openTextDocument({

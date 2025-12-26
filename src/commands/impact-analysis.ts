@@ -29,11 +29,8 @@ export async function impactAnalysisCommand(impactAnalysisHandler: ImpactAnalysi
       try {
         progress.report({ message: 'Analyzing dependencies...' });
 
-        const impact = await impactAnalysisHandler.analyzeImpact({
-          filePath,
-          entityName: extractEntityName(selectedText),
-          entityType: detectEntityType(selectedText),
-        });
+        const entityName = extractEntityName(selectedText);
+        const impact = await impactAnalysisHandler.analyzeImpact(entityName, filePath);
 
         // Show impact in a new document
         const doc = await vscode.workspace.openTextDocument({
@@ -47,9 +44,12 @@ export async function impactAnalysisCommand(impactAnalysisHandler: ImpactAnalysi
         });
 
         // Also show diagnostic warnings for high-impact changes
-        if (impact.riskLevel === 'CRITICAL' || impact.riskLevel === 'HIGH') {
+        const highImpactItems = impact.impacts.filter(
+          (item: any) => item.impactLevel === 'CRITICAL' || item.impactLevel === 'HIGH'
+        );
+        if (highImpactItems.length > 0) {
           vscode.window.showWarningMessage(
-            `⚠️ ${impact.riskLevel} IMPACT: This change affects ${impact.totalAffectedFiles} files!`
+            `⚠️ HIGH IMPACT: This change affects ${impact.impacts.length} locations!`
           );
         }
       } catch (error) {
@@ -82,70 +82,48 @@ function detectEntityType(code: string): string {
 
 function formatImpactAnalysis(impact: any): string {
   let markdown = `# Impact Analysis\n\n`;
-
-  // Risk summary
-  const riskEmoji = {
-    CRITICAL: '🔴',
-    HIGH: '🟠',
-    MEDIUM: '🟡',
-    LOW: '🟢',
-  }[impact.riskLevel] || '⚪';
-
-  markdown += `## ${riskEmoji} Risk Level: ${impact.riskLevel}\n\n`;
+  markdown += `**Target**: ${impact.targetSymbol} in \`${impact.targetFile}\`\n\n`;
 
   // Statistics
   markdown += `### Impact Statistics\n\n`;
-  markdown += `- **Direct Callers**: ${impact.directCallers?.length || 0}\n`;
-  markdown += `- **Total Affected Files**: ${impact.totalAffectedFiles || 0}\n`;
-  markdown += `- **Max Depth**: ${impact.maxDepth || 0} levels\n`;
-  markdown += `- **Impact Score**: ${impact.impactScore?.toFixed(2) || 'N/A'}\n\n`;
-
-  if (impact.testCoverage !== undefined) {
-    markdown += `- **Test Coverage**: ${(impact.testCoverage * 100).toFixed(1)}%\n\n`;
-  }
-
+  markdown += `- **Total Impact Score**: ${impact.totalImpact.toFixed(2)}\n`;
+  markdown += `- **Affected Locations**: ${impact.impacts.length}\n`;
+  markdown += `- **Graph Depth**: ${impact.graphDepth} levels\n\n`;
   markdown += `---\n\n`;
 
-  // Direct callers
-  if (impact.directCallers && impact.directCallers.length > 0) {
-    markdown += `### Direct Callers (${impact.directCallers.length})\n\n`;
+  // Group impacts by level
+  const byLevel: Record<string, any[]> = {
+    CRITICAL: [],
+    HIGH: [],
+    MEDIUM: [],
+    LOW: [],
+  };
 
-    for (const caller of impact.directCallers) {
-      markdown += `- **${caller.name}** in \`${caller.file}\`\n`;
-      if (caller.line) {
-        markdown += `  - Line ${caller.line}\n`;
-      }
-    }
-
-    markdown += `\n---\n\n`;
+  for (const item of impact.impacts) {
+    byLevel[item.impactLevel].push(item);
   }
 
-  // Affected files by depth
-  if (impact.affectedFilesByDepth) {
-    markdown += `### Affected Files by Depth\n\n`;
+  for (const [level, items] of Object.entries(byLevel)) {
+    if (items.length === 0) continue;
 
-    for (const [depth, files] of Object.entries(impact.affectedFilesByDepth)) {
-      markdown += `#### Depth ${depth} (${(files as any[]).length} files)\n\n`;
+    const emoji = {
+      CRITICAL: '🔴',
+      HIGH: '🟠',
+      MEDIUM: '🟡',
+      LOW: '🟢',
+    }[level] || '⚪';
 
-      for (const file of files as any[]) {
-        markdown += `- \`${file}\`\n`;
-      }
+    markdown += `## ${emoji} ${level} Impact (${items.length})\n\n`;
 
-      markdown += `\n`;
+    for (const item of items) {
+      markdown += `### ${item.symbol} in \`${item.filePath}\`\n\n`;
+      markdown += `- **Impact Score**: ${item.impactScore}\n`;
+      markdown += `- **Depth**: ${item.depth}\n`;
+      markdown += `- **Usages**: ${item.usages.length}\n`;
+      markdown += `- **Reason**: ${item.reason}\n\n`;
     }
 
     markdown += `---\n\n`;
-  }
-
-  // Recommendations
-  if (impact.recommendations && impact.recommendations.length > 0) {
-    markdown += `### Recommendations\n\n`;
-
-    for (const rec of impact.recommendations) {
-      markdown += `- ${rec}\n`;
-    }
-
-    markdown += `\n`;
   }
 
   return markdown;

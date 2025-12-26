@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
-import { generateTests } from '../tools/test-generator';
+import { TestGenerator, type TestFramework } from '../tools/test-generator';
+import { MageAgentClient } from '../clients/mageagent-client';
+import { TreeSitterService } from '../parsers/tree-sitter-service';
 
 export async function generateTestsCommand() {
   const editor = vscode.window.activeTextEditor;
@@ -18,17 +20,16 @@ export async function generateTestsCommand() {
   }
 
   const filePath = editor.document.uri.fsPath;
-  const language = editor.document.languageId;
 
   // Detect test framework
-  const framework = await vscode.window.showQuickPick(
-    ['Jest', 'Vitest', 'Pytest', 'Go Test', 'Rust Test', 'JUnit'],
+  const frameworkChoice = await vscode.window.showQuickPick(
+    ['jest', 'vitest', 'pytest', 'go-test', 'rust-test', 'junit'],
     {
       placeHolder: 'Select test framework',
     }
   );
 
-  if (!framework) {
+  if (!frameworkChoice) {
     return;
   }
 
@@ -42,16 +43,29 @@ export async function generateTestsCommand() {
       try {
         progress.report({ message: 'Analyzing code...' });
 
-        const tests = await generateTests({
-          code: selectedText,
-          language,
-          framework: framework.toLowerCase().replace(' ', '-'),
+        // Get API config
+        const config = vscode.workspace.getConfiguration('nexus');
+        const apiKey = await vscode.workspace.getConfiguration().get<string>('nexus-api-key') || '';
+        const mageAgentEndpoint = config.get<string>('mageAgentEndpoint', 'https://api.adverant.ai');
+
+        // Initialize services
+        const mageAgent = new MageAgentClient(mageAgentEndpoint, apiKey);
+        const treeSitter = new TreeSitterService();
+
+        const generator = new TestGenerator(mageAgent, treeSitter);
+
+        const tests = await generator.generateTestsForFunction(
           filePath,
-        });
+          extractFunctionName(selectedText),
+          {
+            framework: frameworkChoice as TestFramework,
+            includeEdgeCases: true,
+            includeMocks: true,
+          }
+        );
 
         // Create test file
-        const testFilePath = getTestFilePath(filePath, language);
-        const testFileUri = vscode.Uri.file(testFilePath);
+        const testFileUri = vscode.Uri.file(tests.filePath);
 
         // Check if test file exists
         let existingContent = '';
@@ -64,7 +78,7 @@ export async function generateTestsCommand() {
 
         // Show preview
         const action = await vscode.window.showInformationMessage(
-          `Generated ${tests.testCases?.length || 0} test cases. What would you like to do?`,
+          `Generated ${tests.testsGenerated} test cases. What would you like to do?`,
           'Preview',
           'Create File',
           'Append to Existing',
@@ -73,8 +87,8 @@ export async function generateTestsCommand() {
 
         if (action === 'Preview') {
           const doc = await vscode.workspace.openTextDocument({
-            content: tests.testCode,
-            language: tests.language,
+            content: tests.content,
+            language: editor.document.languageId,
           });
 
           await vscode.window.showTextDocument(doc, {
@@ -84,7 +98,7 @@ export async function generateTestsCommand() {
         } else if (action === 'Create File') {
           const edit = new vscode.WorkspaceEdit();
           edit.createFile(testFileUri, { overwrite: false });
-          edit.insert(testFileUri, new vscode.Position(0, 0), tests.testCode);
+          edit.insert(testFileUri, new vscode.Position(0, 0), tests.content);
 
           await vscode.workspace.applyEdit(edit);
 
@@ -92,7 +106,7 @@ export async function generateTestsCommand() {
           await vscode.window.showTextDocument(doc);
 
           vscode.window.showInformationMessage(
-            `✅ Test file created: ${testFilePath}`
+            `✅ Test file created: ${tests.filePath}`
           );
         } else if (action === 'Append to Existing') {
           if (!existingContent) {
@@ -107,14 +121,14 @@ export async function generateTestsCommand() {
           edit.insert(
             testFileUri,
             new vscode.Position(lastLine, 0),
-            `\n\n${tests.testCode}`
+            `\n\n${tests.content}`
           );
 
           await vscode.workspace.applyEdit(edit);
           await vscode.window.showTextDocument(doc);
 
           vscode.window.showInformationMessage(
-            `✅ Tests appended to: ${testFilePath}`
+            `✅ Tests appended to: ${tests.filePath}`
           );
         }
       } catch (error) {
@@ -126,26 +140,27 @@ export async function generateTestsCommand() {
   );
 }
 
-function getTestFilePath(filePath: string, language: string): string {
-  const parts = filePath.split('/');
-  const fileName = parts.pop() || '';
-  const baseName = fileName.replace(/\.[^/.]+$/, '');
+// Extract function name from selected text
+function extractFunctionName(code: string): string {
+  // Try to find function/method name in various formats
+  const patterns = [
+    /function\s+(\w+)/,           // function name()
+    /const\s+(\w+)\s*=/,          // const name =
+    /(\w+)\s*=\s*\(/,             // name = ()
+    /(\w+)\s*:\s*function/,       // name: function
+    /(\w+)\s*\([^)]*\)\s*{/,      // name() {
+    /def\s+(\w+)/,                // def name (Python)
+    /func\s+(\w+)/,               // func name (Go)
+    /fn\s+(\w+)/,                 // fn name (Rust)
+    /public\s+\w+\s+(\w+)\s*\(/,  // public type name( (Java)
+  ];
 
-  const extensions: Record<string, string> = {
-    typescript: 'test.ts',
-    javascript: 'test.js',
-    python: 'test.py',
-    go: 'test.go',
-    rust: 'test.rs',
-    java: 'Test.java',
-  };
-
-  const ext = extensions[language] || 'test.js';
-
-  // For Java, capitalize and append Test
-  if (language === 'java') {
-    return [...parts, `${baseName}Test.java`].join('/');
+  for (const pattern of patterns) {
+    const match = code.match(pattern);
+    if (match && match[1]) {
+      return match[1];
+    }
   }
 
-  return [...parts, `${baseName}.${ext}`].join('/');
+  return 'unknownFunction';
 }
