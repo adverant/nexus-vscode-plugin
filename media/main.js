@@ -235,10 +235,15 @@
 
     async function generateVisualization() {
         const vizType = document.getElementById('viz-type').value;
-        const filePath = document.getElementById('file-path').value;
+        let filePath = document.getElementById('file-path').value;
         const layoutAlgorithm = document.getElementById('layout-algorithm').value;
         const nlQuery = document.getElementById('nl-query').value;
         const vizContainer = document.getElementById('viz-container');
+
+        // Auto-fill with current workspace if empty
+        if (!filePath) {
+            filePath = 'src/extension.ts'; // Default to extension entry point
+        }
 
         try {
             showLoading('Generating visualization...');
@@ -246,19 +251,16 @@
             let data;
             switch (vizType) {
                 case 'dependencyGraph':
-                    if (!filePath) throw new Error('File path is required');
                     data = await sendRequest('getDependencyGraph', { filePath, layoutAlgorithm });
                     renderDependencyGraph(vizContainer, data);
                     break;
 
                 case 'evolutionTimeline':
-                    if (!filePath) throw new Error('File path is required');
                     data = await sendRequest('getEvolutionTimeline', { filePath });
                     renderEvolutionTimeline(vizContainer, data);
                     break;
 
                 case 'impactRipple':
-                    if (!filePath) throw new Error('File path is required');
                     data = await sendRequest('getImpactRipple', { filePath });
                     renderImpactRipple(vizContainer, data);
                     break;
@@ -274,7 +276,9 @@
                     break;
 
                 case 'nlQuery':
-                    if (!nlQuery) throw new Error('Query is required');
+                    if (!nlQuery) {
+                        throw new Error('Please enter a natural language query');
+                    }
                     data = await sendRequest('nlQuery', { query: nlQuery, repositoryPath: filePath || '.' });
                     renderNLQuery(vizContainer, data);
                     break;
