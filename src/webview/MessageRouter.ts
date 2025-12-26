@@ -138,14 +138,12 @@ export class MessageRouter {
 
   private async handleDependencyGraph(params: any) {
     const result = await this.visualizationHandler.handleDependencyGraph({
-      params: {
-        rootFile: params.filePath,
-        layout: params.layoutAlgorithm || 'force',
-        depth: params.maxDepth || 3,
-      },
+      rootFile: params.filePath,
+      layout: params.layoutAlgorithm || 'force',
+      depth: params.maxDepth || 3,
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -157,13 +155,10 @@ export class MessageRouter {
 
   private async handleEvolutionTimeline(params: any) {
     const result = await this.visualizationHandler.handleEvolutionTimeline({
-      params: {
-        entity: params.filePath,
-        maxCommits: params.maxCommits || 50,
-      },
+      entity: params.filePath,
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -175,13 +170,11 @@ export class MessageRouter {
 
   private async handleImpactRipple(params: any) {
     const result = await this.visualizationHandler.handleImpactRipple({
-      params: {
-        changeSet: [params.filePath],
-        maxDepth: params.maxDepth || 3,
-      },
+      entityId: params.filePath,
+      maxDepth: params.maxDepth || 3,
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -193,12 +186,10 @@ export class MessageRouter {
 
   private async handleSemanticClusters(params: any) {
     const result = await this.visualizationHandler.handleSemanticClusters({
-      params: {
-        repositoryPath: params.repositoryPath,
-      },
+      query: params.repositoryPath || 'all',
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -210,12 +201,10 @@ export class MessageRouter {
 
   private async handleArchitectureAnalyze(params: any) {
     const result = await this.visualizationHandler.handleArchitectureAnalyze({
-      params: {
-        repositoryPath: params.repositoryPath,
-      },
+      targetPath: params.repositoryPath,
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -227,13 +216,10 @@ export class MessageRouter {
 
   private async handleNLQuery(params: any) {
     const result = await this.visualizationHandler.handleNLQuery({
-      params: {
-        query: params.query,
-        repositoryPath: params.repositoryPath,
-      },
+      query: params.query,
     });
 
-    if (!result.isError && result.content) {
+    if (result.content) {
       const content = result.content.find((c) => c.type === 'text');
       if (content && 'text' in content) {
         return JSON.parse(content.text);
@@ -245,21 +231,15 @@ export class MessageRouter {
 
   private async handleExplainCode(params: any) {
     // Use MageAgent to explain code
-    const response = await this.mageAgentClient.sendRequest({
-      method: 'tools/call',
-      params: {
-        name: 'mageagent_generate',
-        arguments: {
-          model: 'qwen2.5:72b',
-          prompt: `Explain the following code in detail:\n\n${params.code}`,
-          systemPrompt: 'You are an expert code analyst. Explain code clearly and concisely.',
-          temperature: 0.3,
-        },
-      },
-    });
+    const job = await this.mageAgentClient.orchestrate(
+      `Explain the following code in detail:\n\n${params.code}`
+    );
+
+    // Wait for completion
+    const result = await this.mageAgentClient.waitForCompletion(job.jobId);
 
     return {
-      explanation: response.content[0].text,
+      explanation: result.result || 'Unable to generate explanation',
       code: params.code,
       language: params.language,
     };
@@ -298,21 +278,15 @@ export class MessageRouter {
   }
 
   private async handleGenerateTests(params: any) {
-    const response = await this.mageAgentClient.sendRequest({
-      method: 'tools/call',
-      params: {
-        name: 'mageagent_generate',
-        arguments: {
-          model: 'qwen2.5:72b',
-          prompt: `Generate comprehensive unit tests for this code using ${params.framework || 'Jest'}:\n\n${params.code}`,
-          systemPrompt: `You are an expert test engineer. Generate clear, comprehensive unit tests using ${params.framework || 'Jest'}.`,
-          temperature: 0.5,
-        },
-      },
-    });
+    const job = await this.mageAgentClient.orchestrate(
+      `Generate comprehensive unit tests for this code using ${params.framework || 'Jest'}:\n\n${params.code}`
+    );
+
+    // Wait for completion
+    const result = await this.mageAgentClient.waitForCompletion(job.jobId);
 
     return {
-      tests: response.content[0].text,
+      tests: result.result || 'Unable to generate tests',
       framework: params.framework || 'Jest',
       code: params.code,
     };
@@ -320,11 +294,11 @@ export class MessageRouter {
 
   private async handleGetApiStatus() {
     try {
-      // Try to get server info to check if API is configured
-      await this.graphRAGClient.getServerInfo();
+      // Try health check to see if API is configured
+      const isHealthy = await this.graphRAGClient.healthCheck();
       return {
         configured: true,
-        status: 'connected',
+        status: isHealthy ? 'connected' : 'disconnected',
       };
     } catch (error) {
       return {
