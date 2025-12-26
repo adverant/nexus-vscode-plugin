@@ -45,6 +45,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const config = vscode.workspace.getConfiguration('nexus');
   const apiEndpoint = config.get<string>('apiEndpoint', 'https://api.adverant.ai');
   const mageAgentEndpoint = config.get<string>('mageAgentEndpoint', 'https://api.adverant.ai');
+  const companyId = config.get<string>('companyId', 'adverant');
+  const appId = config.get<string>('appId', 'nexus-vscode');
 
   // Get API key from secrets
   let apiKey = await context.secrets.get('nexus-api-key');
@@ -68,7 +70,7 @@ export async function activate(context: vscode.ExtensionContext) {
     : '';
 
   // Initialize clients
-  const graphragClient = new GraphRAGClient(apiEndpoint, apiKey || '');
+  const graphragClient = new GraphRAGClient(apiEndpoint, apiKey || '', companyId, appId);
   const chatClient = new NexusChatClient(apiEndpoint, apiKey || '');
   const mageAgentClient = new MageAgentClient(mageAgentEndpoint, apiKey || ''); // Keep for VisualizationHandler compatibility
 

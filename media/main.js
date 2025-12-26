@@ -296,65 +296,449 @@
         }
     }
 
-    // Placeholder renderers (will be enhanced with D3.js)
+    // ========================================================================
+    // D3.js Visualization Renderers
+    // ========================================================================
+
     function renderDependencyGraph(container, data) {
+        if (!data.success || !data.graph) {
+            container.innerHTML = `<div class="error-message">Failed to load dependency graph: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const graph = data.graph;
+        if (!graph.nodes || graph.nodes.length === 0) {
+            container.innerHTML = `<div class="placeholder"><p>No dependencies found for this file.</p></div>`;
+            return;
+        }
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>Dependency Graph</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">D3.js visualization coming soon!</p>
+            <div style="padding: 10px;">
+                <h3 style="margin-bottom: 10px;">Dependency Graph</h3>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">${graph.nodes.length} nodes, ${graph.edges.length} edges</p>
+                <div id="graph-svg-container" style="width: 100%; height: 500px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; overflow: hidden;"></div>
             </div>
         `;
+
+        const svgContainer = document.getElementById('graph-svg-container');
+        const width = svgContainer.clientWidth;
+        const height = 500;
+
+        const svg = d3.select(svgContainer)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Color scale for node types
+        const colorScale = d3.scaleOrdinal()
+            .domain(['file', 'function', 'class', 'method', 'module'])
+            .range(['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8']);
+
+        // Create simulation
+        const simulation = d3.forceSimulation(graph.nodes)
+            .force('link', d3.forceLink(graph.edges).id(d => d.id).distance(80))
+            .force('charge', d3.forceManyBody().strength(-200))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collision', d3.forceCollide().radius(30));
+
+        // Draw edges
+        const link = svg.append('g')
+            .selectAll('line')
+            .data(graph.edges)
+            .enter()
+            .append('line')
+            .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
+            .attr('stroke-opacity', 0.6)
+            .attr('stroke-width', 1.5);
+
+        // Draw nodes
+        const node = svg.append('g')
+            .selectAll('g')
+            .data(graph.nodes)
+            .enter()
+            .append('g')
+            .call(d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended));
+
+        node.append('circle')
+            .attr('r', d => d.type === 'file' ? 12 : 8)
+            .attr('fill', d => colorScale(d.type || 'file'))
+            .attr('stroke', 'var(--vscode-editor-foreground)')
+            .attr('stroke-width', 1.5);
+
+        node.append('text')
+            .text(d => d.name ? d.name.split('/').pop().substring(0, 15) : '')
+            .attr('x', 15)
+            .attr('y', 4)
+            .attr('font-size', '11px')
+            .attr('fill', 'var(--vscode-editor-foreground)');
+
+        node.append('title')
+            .text(d => d.name || d.id);
+
+        simulation.on('tick', () => {
+            link
+                .attr('x1', d => d.source.x)
+                .attr('y1', d => d.source.y)
+                .attr('x2', d => d.target.x)
+                .attr('y2', d => d.target.y);
+
+            node.attr('transform', d => `translate(${d.x},${d.y})`);
+        });
+
+        function dragstarted(event, d) {
+            if (!event.active) simulation.alphaTarget(0.3).restart();
+            d.fx = d.x;
+            d.fy = d.y;
+        }
+
+        function dragged(event, d) {
+            d.fx = event.x;
+            d.fy = event.y;
+        }
+
+        function dragended(event, d) {
+            if (!event.active) simulation.alphaTarget(0);
+            d.fx = null;
+            d.fy = null;
+        }
     }
 
     function renderEvolutionTimeline(container, data) {
+        if (!data.success || !data.timeline) {
+            container.innerHTML = `<div class="error-message">Failed to load timeline: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const timeline = data.timeline;
+        const events = timeline.events || [];
+        const stats = timeline.statistics || {};
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>Evolution Timeline</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">Timeline visualization coming soon!</p>
+            <div style="padding: 15px;">
+                <h3 style="margin-bottom: 10px;">Evolution Timeline</h3>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${timeline.entity.split('/').pop()}</p>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalCommits || 0}</div>
+                        <div class="stat-label">Commits</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">${stats.totalAuthors || 0}</div>
+                        <div class="stat-label">Authors</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">+${stats.totalLinesAdded || 0}</div>
+                        <div class="stat-label">Lines Added</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-value">-${stats.totalLinesRemoved || 0}</div>
+                        <div class="stat-label">Lines Removed</div>
+                    </div>
+                </div>
+
+                ${events.length === 0 ?
+                    '<p style="text-align: center; opacity: 0.7;">No commits found for this file in the selected time range.</p>' :
+                    `<div id="timeline-chart" style="width: 100%; height: 200px;"></div>
+                     <div id="timeline-events" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>`
+                }
             </div>
         `;
+
+        if (events.length > 0) {
+            // Render timeline chart
+            const chartContainer = document.getElementById('timeline-chart');
+            const width = chartContainer.clientWidth;
+            const height = 200;
+            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
+
+            const svg = d3.select(chartContainer)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+
+            const x = d3.scaleTime()
+                .domain(d3.extent(events, d => new Date(d.date)))
+                .range([margin.left, width - margin.right]);
+
+            const y = d3.scaleLinear()
+                .domain([0, d3.max(events, d => (d.linesAdded || 0) + (d.linesRemoved || 0))])
+                .range([height - margin.bottom, margin.top]);
+
+            // Bars
+            svg.selectAll('rect')
+                .data(events)
+                .enter()
+                .append('rect')
+                .attr('x', d => x(new Date(d.date)) - 5)
+                .attr('y', d => y((d.linesAdded || 0) + (d.linesRemoved || 0)))
+                .attr('width', 10)
+                .attr('height', d => height - margin.bottom - y((d.linesAdded || 0) + (d.linesRemoved || 0)))
+                .attr('fill', '#4fc3f7')
+                .attr('opacity', 0.8);
+
+            // X axis
+            svg.append('g')
+                .attr('transform', `translate(0,${height - margin.bottom})`)
+                .call(d3.axisBottom(x).ticks(5))
+                .attr('color', 'var(--vscode-editor-foreground)');
+
+            // Render event list
+            const eventsContainer = document.getElementById('timeline-events');
+            eventsContainer.innerHTML = events.slice(0, 20).map(e => `
+                <div style="padding: 8px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 12px;">
+                    <div style="display: flex; justify-content: space-between;">
+                        <strong>${e.message ? e.message.substring(0, 50) : 'No message'}</strong>
+                        <span style="opacity: 0.7;">${new Date(e.date).toLocaleDateString()}</span>
+                    </div>
+                    <div style="opacity: 0.7; margin-top: 4px;">
+                        ${e.author || 'Unknown'} •
+                        <span style="color: #81c784;">+${e.linesAdded || 0}</span>
+                        <span style="color: #f06292;">-${e.linesRemoved || 0}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
     }
 
     function renderImpactRipple(container, data) {
+        if (!data.success || !data.ripple) {
+            container.innerHTML = `<div class="error-message">Failed to load impact analysis: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const ripple = data.ripple;
+        const layers = ripple.layers || [];
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>Impact Ripple</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">Ripple visualization coming soon!</p>
+            <div style="padding: 15px;">
+                <h3 style="margin-bottom: 10px;">Impact Ripple Analysis</h3>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">Source: ${ripple.sourceEntity}</p>
+                <div id="ripple-svg" style="width: 100%; height: 400px;"></div>
+                <div style="margin-top: 15px;">
+                    <h4>Impact Summary</h4>
+                    <p style="font-size: 12px; opacity: 0.8;">
+                        ${ripple.summary || `${layers.length} layers of impact detected.`}
+                    </p>
+                </div>
             </div>
         `;
+
+        const svgContainer = document.getElementById('ripple-svg');
+        const width = svgContainer.clientWidth;
+        const height = 400;
+        const centerX = width / 2;
+        const centerY = height / 2;
+
+        const svg = d3.select(svgContainer)
+            .append('svg')
+            .attr('width', width)
+            .attr('height', height);
+
+        // Draw concentric circles for layers
+        const maxRadius = Math.min(width, height) / 2 - 40;
+        const layerCount = Math.max(layers.length, 3);
+
+        for (let i = layerCount; i > 0; i--) {
+            svg.append('circle')
+                .attr('cx', centerX)
+                .attr('cy', centerY)
+                .attr('r', (i / layerCount) * maxRadius)
+                .attr('fill', 'none')
+                .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
+                .attr('stroke-opacity', 0.3)
+                .attr('stroke-dasharray', '4,4');
+        }
+
+        // Draw center node
+        svg.append('circle')
+            .attr('cx', centerX)
+            .attr('cy', centerY)
+            .attr('r', 15)
+            .attr('fill', '#f06292');
+
+        svg.append('text')
+            .attr('x', centerX)
+            .attr('y', centerY + 30)
+            .attr('text-anchor', 'middle')
+            .attr('font-size', '11px')
+            .attr('fill', 'var(--vscode-editor-foreground)')
+            .text('Source');
+
+        // Draw impacted nodes in each layer
+        layers.forEach((layer, layerIndex) => {
+            const radius = ((layerIndex + 1) / layerCount) * maxRadius;
+            const entities = layer.entities || [];
+
+            entities.forEach((entity, i) => {
+                const angle = (2 * Math.PI * i) / entities.length - Math.PI / 2;
+                const x = centerX + radius * Math.cos(angle);
+                const y = centerY + radius * Math.sin(angle);
+
+                svg.append('line')
+                    .attr('x1', centerX)
+                    .attr('y1', centerY)
+                    .attr('x2', x)
+                    .attr('y2', y)
+                    .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
+                    .attr('stroke-opacity', 0.3);
+
+                svg.append('circle')
+                    .attr('cx', x)
+                    .attr('cy', y)
+                    .attr('r', 8)
+                    .attr('fill', d3.interpolateBlues(1 - layerIndex / layerCount));
+
+                svg.append('title')
+                    .text(entity.name || entity.id);
+            });
+        });
     }
 
     function renderSemanticClusters(container, data) {
+        if (!data.success || !data.clusters) {
+            container.innerHTML = `<div class="error-message">Failed to load clusters: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const clusters = data.clusters || [];
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>Semantic Clusters</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">Cluster visualization coming soon!</p>
+            <div style="padding: 15px;">
+                <h3 style="margin-bottom: 10px;">Semantic Clusters</h3>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${clusters.length} clusters identified</p>
+                <div id="clusters-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
             </div>
         `;
+
+        const clustersContainer = document.getElementById('clusters-container');
+        const colors = ['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8', '#4db6ac'];
+
+        clusters.forEach((cluster, i) => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.borderLeft = `4px solid ${colors[i % colors.length]}`;
+            card.innerHTML = `
+                <h4 style="margin-bottom: 8px;">${cluster.name || `Cluster ${i + 1}`}</h4>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">${cluster.description || 'No description'}</p>
+                <div style="font-size: 11px;">
+                    <strong>${(cluster.entities || []).length}</strong> entities
+                    ${cluster.cohesion ? ` • Cohesion: ${(cluster.cohesion * 100).toFixed(0)}%` : ''}
+                </div>
+                <div style="margin-top: 8px; font-size: 11px; opacity: 0.7;">
+                    ${(cluster.entities || []).slice(0, 5).map(e => e.name || e).join(', ')}
+                    ${(cluster.entities || []).length > 5 ? '...' : ''}
+                </div>
+            `;
+            clustersContainer.appendChild(card);
+        });
+
+        if (clusters.length === 0) {
+            clustersContainer.innerHTML = '<p style="opacity: 0.7;">No semantic clusters found. Try indexing the repository first.</p>';
+        }
     }
 
     function renderArchitecture(container, data) {
+        if (!data.success) {
+            container.innerHTML = `<div class="error-message">Failed to analyze architecture: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const analysis = data.analysis || data;
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>Architecture Analysis</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">Architecture visualization coming soon!</p>
+            <div style="padding: 15px;">
+                <h3 style="margin-bottom: 10px;">Architecture Analysis</h3>
+
+                ${analysis.patterns ? `
+                <div style="margin-bottom: 20px;">
+                    <h4>Detected Patterns</h4>
+                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
+                        ${(analysis.patterns || []).map(p => `
+                            <span style="background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
+                                ${p.name || p}
+                            </span>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${analysis.layers ? `
+                <div style="margin-bottom: 20px;">
+                    <h4>Architecture Layers</h4>
+                    ${(analysis.layers || []).map((layer, i) => `
+                        <div style="margin-top: 8px; padding: 10px; background: var(--vscode-editor-background); border-radius: 4px;">
+                            <strong>${layer.name || `Layer ${i + 1}`}</strong>
+                            <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+                                ${layer.description || `${(layer.components || []).length} components`}
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+
+                ${analysis.recommendations ? `
+                <div>
+                    <h4>Recommendations</h4>
+                    <ul style="margin-top: 8px; padding-left: 20px; font-size: 12px;">
+                        ${(analysis.recommendations || []).map(r => `<li style="margin-bottom: 4px;">${r}</li>`).join('')}
+                    </ul>
+                </div>
+                ` : ''}
+
+                ${!analysis.patterns && !analysis.layers && !analysis.recommendations ? `
+                <pre style="font-size: 11px; overflow: auto;">${JSON.stringify(data, null, 2)}</pre>
+                ` : ''}
             </div>
         `;
     }
 
     function renderNLQuery(container, data) {
+        if (!data.success) {
+            container.innerHTML = `<div class="error-message">Query failed: ${data.error || 'Unknown error'}</div>`;
+            return;
+        }
+
+        const results = data.results || [];
+
         container.innerHTML = `
-            <div style="padding: 20px;">
-                <h3>NL Query Results</h3>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-                <p style="margin-top: 12px; opacity: 0.7;">Graph visualization coming soon!</p>
+            <div style="padding: 15px;">
+                <h3 style="margin-bottom: 10px;">Query Results</h3>
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${results.length} results found</p>
+                <div id="query-results"></div>
             </div>
         `;
+
+        const resultsContainer = document.getElementById('query-results');
+
+        if (results.length === 0) {
+            resultsContainer.innerHTML = '<p style="opacity: 0.7;">No results found. Try a different query or index the repository first.</p>';
+            return;
+        }
+
+        results.forEach(result => {
+            const card = document.createElement('div');
+            card.className = 'card';
+            card.style.marginBottom = '10px';
+            card.innerHTML = `
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <strong>${result.entity?.name || result.name || 'Unknown'}</strong>
+                    <span style="font-size: 11px; opacity: 0.7;">${((result.score || 0) * 100).toFixed(0)}% match</span>
+                </div>
+                <div style="font-size: 11px; opacity: 0.7; margin: 4px 0;">
+                    ${result.entity?.type || result.type || 'entity'}
+                    ${result.entity?.sourceFile ? `• ${result.entity.sourceFile}` : ''}
+                </div>
+                ${result.explanation ? `<p style="font-size: 12px; margin-top: 8px;">${result.explanation}</p>` : ''}
+                ${result.entity?.content ? `
+                    <pre style="font-size: 10px; margin-top: 8px; padding: 8px; background: var(--vscode-editor-background); border-radius: 4px; overflow: auto; max-height: 150px;">${escapeHtml(result.entity.content.substring(0, 500))}${result.entity.content.length > 500 ? '...' : ''}</pre>
+                ` : ''}
+            `;
+            resultsContainer.appendChild(card);
+        });
     }
 
     // ========================================================================

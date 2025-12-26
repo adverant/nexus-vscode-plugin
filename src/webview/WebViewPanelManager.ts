@@ -150,11 +150,11 @@ export class WebViewPanelManager {
     const nonce = this.getNonce();
     html = html.replace(/{{nonce}}/g, nonce);
 
-    // Add Content Security Policy
+    // Add Content Security Policy (allow D3.js from CDN)
     html = html.replace(
       '<head>',
       `<head>
-        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} https:; font-src ${webview.cspSource};">`
+        <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' https://d3js.org; img-src ${webview.cspSource} https:; font-src ${webview.cspSource};">`
     );
 
     return html;

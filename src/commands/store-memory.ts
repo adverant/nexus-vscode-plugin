@@ -3,20 +3,28 @@ import { GraphRAGClient } from '../clients/graphrag-client';
 
 export async function storeMemoryCommand(client: GraphRAGClient) {
   const editor = vscode.window.activeTextEditor;
+  let content: string | undefined;
 
-  if (!editor) {
-    vscode.window.showErrorMessage('No active editor');
-    return;
+  if (editor) {
+    // Use selected text or entire file content
+    const selection = editor.selection;
+    content = selection.isEmpty
+      ? editor.document.getText()
+      : editor.document.getText(selection);
   }
 
-  const selection = editor.selection;
-  const content = selection.isEmpty
-    ? editor.document.getText()
-    : editor.document.getText(selection);
+  // If no editor or no content, prompt user to enter text
+  if (!content || !content.trim()) {
+    content = await vscode.window.showInputBox({
+      prompt: 'Enter the content to store as a memory',
+      placeHolder: 'Paste or type your code/text here...',
+      ignoreFocusOut: true,
+    });
 
-  if (!content.trim()) {
-    vscode.window.showErrorMessage('No content to store');
-    return;
+    if (!content || !content.trim()) {
+      vscode.window.showWarningMessage('No content provided. Memory not stored.');
+      return;
+    }
   }
 
   const tags = await vscode.window.showInputBox({

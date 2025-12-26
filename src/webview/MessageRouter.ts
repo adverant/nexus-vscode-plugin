@@ -15,7 +15,7 @@ import { z } from 'zod';
 
 export class MessageRouter {
   constructor(
-    private context: vscode.ExtensionContext,
+    private _context: vscode.ExtensionContext,
     private graphRAGClient: GraphRAGClient,
     private visualizationHandler: VisualizationHandler,
     private chatClient: NexusChatClient
@@ -100,6 +100,10 @@ export class MessageRouter {
           data = await this.handleGetRepoStats(validatedParams);
           break;
 
+        case 'storeMemory':
+          data = await this.handleStoreMemory(validatedParams);
+          break;
+
         default:
           return {
             id,
@@ -136,9 +140,57 @@ export class MessageRouter {
   // Handler Methods
   // ============================================================================
 
+  /**
+   * Resolve a file path relative to the workspace
+   * Tries to find the file in workspace subfolders if not found at root
+   */
+  private resolveFilePath(filePath: string): string {
+    if (!filePath) return '';
+
+    // If already absolute, return as-is
+    if (filePath.startsWith('/')) return filePath;
+
+    // Try to find the file in workspace folders
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (!workspaceFolders || workspaceFolders.length === 0) {
+      return filePath;
+    }
+
+    const fs = require('fs');
+    const path = require('path');
+
+    // First, try directly from workspace root
+    const directPath = path.join(workspaceFolders[0].uri.fsPath, filePath);
+    if (fs.existsSync(directPath)) {
+      return directPath;
+    }
+
+    // If not found, try to find it in immediate subdirectories
+    // This handles the case where workspace is /Users/don/Adverant but file is in nexus-vscode-plugin/src/
+    const rootPath = workspaceFolders[0].uri.fsPath;
+    try {
+      const entries = fs.readdirSync(rootPath, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+          const subPath = path.join(rootPath, entry.name, filePath);
+          if (fs.existsSync(subPath)) {
+            return subPath;
+          }
+        }
+      }
+    } catch {
+      // Ignore errors
+    }
+
+    // Return original path if nothing found
+    return filePath;
+  }
+
   private async handleDependencyGraph(params: any) {
+    const filePath = this.resolveFilePath(params.filePath);
+
     const result = await this.visualizationHandler.handleDependencyGraph({
-      rootFile: params.filePath,
+      rootFile: filePath,
       layout: params.layoutAlgorithm || 'force',
       depth: params.maxDepth || 3,
     });
@@ -154,8 +206,10 @@ export class MessageRouter {
   }
 
   private async handleEvolutionTimeline(params: any) {
+    const filePath = this.resolveFilePath(params.filePath);
+
     const result = await this.visualizationHandler.handleEvolutionTimeline({
-      entity: params.filePath,
+      entity: filePath,
     });
 
     if (result.content) {
@@ -169,8 +223,10 @@ export class MessageRouter {
   }
 
   private async handleImpactRipple(params: any) {
+    const filePath = this.resolveFilePath(params.filePath);
+
     const result = await this.visualizationHandler.handleImpactRipple({
-      entityId: params.filePath,
+      entityId: filePath,
       maxDepth: params.maxDepth || 3,
     });
 
@@ -308,24 +364,30 @@ export class MessageRouter {
   }
 
   private async handleGetRecentMemories(params: any) {
-    const results = await this.graphRAGClient.search('', {
-      limit: params.limit || 5,
-      domain: 'code',
-    });
+    try {
+      // Use a general query to fetch recent memories
+      const results = await this.graphRAGClient.search('*', {
+        limit: params.limit || 5,
+        domain: 'code',
+      });
 
-    return {
-      memories: results.map((r) => ({
-        content: r.content,
-        score: r.score,
-        metadata: r.metadata,
-      })),
-    };
+      return {
+        memories: results.map((r) => ({
+          content: r.content,
+          score: r.score,
+          metadata: r.metadata,
+        })),
+      };
+    } catch (error) {
+      // If search fails, return empty array instead of throwing
+      return { memories: [] };
+    }
   }
 
-  private async handleGetRepoStats(params: any) {
+  private async handleGetRepoStats(_params: any) {
     try {
       // Query GraphRAG for repository statistics
-      const results = await this.graphRAGClient.search('repository statistics', {
+      await this.graphRAGClient.search('repository statistics', {
         limit: 1,
         domain: 'code',
       });
@@ -346,5 +408,20 @@ export class MessageRouter {
         error: error instanceof Error ? error.message : 'Unknown error',
       };
     }
+  }
+
+  private async handleStoreMemory(params: any) {
+    const result = await this.graphRAGClient.storeEntity({
+      domain: params.domain || 'code',
+      entityType: params.entityType || 'memory',
+      textContent: params.content,
+      tags: params.tags || [],
+    });
+
+    return {
+      success: true,
+      entityId: result.entityId,
+      message: 'Memory stored successfully',
+    };
   }
 }

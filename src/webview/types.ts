@@ -91,6 +91,13 @@ export const GetRepoStatsParamsSchema = z.object({
   repositoryPath: z.string(),
 });
 
+export const StoreMemoryParamsSchema = z.object({
+  content: z.string(),
+  tags: z.array(z.string()).optional(),
+  domain: z.string().optional(),
+  entityType: z.string().optional(),
+});
+
 // Command types
 export type CommandType =
   | 'getDependencyGraph'
@@ -106,7 +113,8 @@ export type CommandType =
   | 'generateTests'
   | 'getApiStatus'
   | 'getRecentMemories'
-  | 'getRepoStats';
+  | 'getRepoStats'
+  | 'storeMemory';
 
 // Map commands to their parameter schemas
 export const CommandSchemas: Record<CommandType, z.ZodSchema> = {
@@ -124,4 +132,5 @@ export const CommandSchemas: Record<CommandType, z.ZodSchema> = {
   getApiStatus: GetApiStatusParamsSchema,
   getRecentMemories: GetRecentMemoriesParamsSchema,
   getRepoStats: GetRepoStatsParamsSchema,
+  storeMemory: StoreMemoryParamsSchema,
 };

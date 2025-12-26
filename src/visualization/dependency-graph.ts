@@ -116,9 +116,43 @@ export class DependencyGraphBuilder {
     const supportedExtensions = ['.ts', '.tsx', '.js', '.jsx', '.py', '.go', '.rs', '.java'];
     const ignoreDirs = ['node_modules', 'dist', 'build', '.git', 'target', '__pycache__', '.next', 'vendor'];
 
-    const absoluteRoot = rootPath.startsWith('/')
-      ? rootPath
-      : join(this.repoPath, rootPath);
+    // Determine absolute path to the root
+    let absoluteRoot: string;
+    if (rootPath.startsWith('/')) {
+      absoluteRoot = rootPath;
+    } else {
+      absoluteRoot = join(this.repoPath, rootPath);
+    }
+
+    // Determine the effective base path for relative calculations
+    // If the absolute path doesn't start with repoPath, find the project root
+    let effectiveBasePath = this.repoPath;
+    if (!absoluteRoot.startsWith(this.repoPath)) {
+      // Use the parent directory of the target as the base
+      effectiveBasePath = dirname(absoluteRoot);
+      // Try to find a project root (directory with package.json, .git, etc.)
+      let searchDir = effectiveBasePath;
+      for (let i = 0; i < 10; i++) {
+        try {
+          await stat(join(searchDir, 'package.json'));
+          effectiveBasePath = searchDir;
+          break;
+        } catch {
+          try {
+            await stat(join(searchDir, '.git'));
+            effectiveBasePath = searchDir;
+            break;
+          } catch {
+            const parent = dirname(searchDir);
+            if (parent === searchDir) break;
+            searchDir = parent;
+          }
+        }
+      }
+    }
+
+    // Store effective base path for use in relative path calculations
+    const basePath = effectiveBasePath;
 
     const walk = async (dir: string): Promise<void> => {
       try {
@@ -126,7 +160,7 @@ export class DependencyGraphBuilder {
 
         for (const entry of entries) {
           const fullPath = join(dir, entry.name);
-          const relativePath = relative(this.repoPath, fullPath);
+          const relativePath = relative(basePath, fullPath);
 
           // Check exclude patterns
           if (filters.excludePatterns?.some((p) => relativePath.includes(p))) {
@@ -165,7 +199,7 @@ export class DependencyGraphBuilder {
         await walk(absoluteRoot);
       }
     } catch {
-      // Try as relative path
+      // Try as relative path from repoPath
       const relativePath = join(this.repoPath, rootPath);
       const relStat = await stat(relativePath);
       if (relStat.isFile()) {

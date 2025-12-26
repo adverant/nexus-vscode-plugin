@@ -142,6 +142,16 @@
           "type": "number",
           "default": 1048576,
           "description": "Maximum file size to index (in bytes, default 1MB)"
+        },
+        "nexus.companyId": {
+          "type": "string",
+          "default": "adverant",
+          "description": "Company ID for tenant isolation (required for API access)"
+        },
+        "nexus.appId": {
+          "type": "string",
+          "default": "nexus-vscode",
+          "description": "Application ID for tenant isolation (required for API access)"
         }
       }
     },
