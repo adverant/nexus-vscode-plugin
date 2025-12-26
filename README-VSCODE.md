@@ -27,8 +27,9 @@ code --install-extension adverant.nexus-vscode-plugin-0.1.0.vsix
 
 ## 🔧 Configuration
 
-1. Run: `Nexus: Configure API Settings`
-2. Enter API key: `YOUR_API_KEY_HERE`
+1. Get your API key from [api.adverant.ai](https://api.adverant.ai)
+2. Run: `Nexus: Configure API Settings`
+3. Enter your API key when prompted
 
 ## 📄 License
 
