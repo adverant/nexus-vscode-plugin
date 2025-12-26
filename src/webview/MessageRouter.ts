@@ -3,7 +3,7 @@ import { GraphRAGClient } from '../clients/graphrag-client';
 import { VisualizationHandler } from '../handlers/visualization-handler';
 import { SecurityScanner } from '../tools/security-scanner';
 import { GitService } from '../git/git-service';
-import { MageAgentClient } from '../clients/mageagent-client';
+import { NexusChatClient } from '../clients/nexus-chat-client';
 import {
   Request,
   Response,
@@ -18,7 +18,7 @@ export class MessageRouter {
     private context: vscode.ExtensionContext,
     private graphRAGClient: GraphRAGClient,
     private visualizationHandler: VisualizationHandler,
-    private mageAgentClient: MageAgentClient
+    private chatClient: NexusChatClient
   ) {}
 
   async route(message: any): Promise<Response> {
@@ -230,16 +230,14 @@ export class MessageRouter {
   }
 
   private async handleExplainCode(params: any) {
-    // Use MageAgent to explain code
-    const job = await this.mageAgentClient.orchestrate(
-      `Explain the following code in detail:\n\n${params.code}`
+    // Use Nexus Chat backend for intelligent code explanation
+    const explanation = await this.chatClient.explainCode(
+      params.code,
+      params.language
     );
 
-    // Wait for completion
-    const result = await this.mageAgentClient.waitForCompletion(job.jobId);
-
     return {
-      explanation: result.result || 'Unable to generate explanation',
+      explanation,
       code: params.code,
       language: params.language,
     };
@@ -278,15 +276,15 @@ export class MessageRouter {
   }
 
   private async handleGenerateTests(params: any) {
-    const job = await this.mageAgentClient.orchestrate(
-      `Generate comprehensive unit tests for this code using ${params.framework || 'Jest'}:\n\n${params.code}`
+    // Use Nexus Chat backend for intelligent test generation
+    const tests = await this.chatClient.generateTests(
+      params.code,
+      params.framework || 'Jest',
+      params.language
     );
 
-    // Wait for completion
-    const result = await this.mageAgentClient.waitForCompletion(job.jobId);
-
     return {
-      tests: result.result || 'Unable to generate tests',
+      tests,
       framework: params.framework || 'Jest',
       code: params.code,
     };

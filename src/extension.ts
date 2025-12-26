@@ -6,6 +6,7 @@
 
 import * as vscode from 'vscode';
 import { GraphRAGClient } from './clients/graphrag-client';
+import { NexusChatClient } from './clients/nexus-chat-client';
 import { MageAgentClient } from './clients/mageagent-client';
 import { TreeSitterService } from './parsers/tree-sitter-service';
 import { GitService } from './git/git-service';
@@ -68,7 +69,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Initialize clients
   const graphragClient = new GraphRAGClient(apiEndpoint, apiKey || '');
-  const mageAgentClient = new MageAgentClient(mageAgentEndpoint, apiKey || '');
+  const chatClient = new NexusChatClient(apiEndpoint, apiKey || '');
+  const mageAgentClient = new MageAgentClient(mageAgentEndpoint, apiKey || ''); // Keep for VisualizationHandler compatibility
 
   // Initialize services
   const treeSitterService = new TreeSitterService();
@@ -80,8 +82,8 @@ export async function activate(context: vscode.ExtensionContext) {
   const impactAnalysisHandler = new ImpactAnalysisHandler(graphragClient, treeSitterService, repoPath);
   const visualizationHandler = new VisualizationHandler(graphragClient, mageAgentClient, treeSitterService, gitService, repoPath);
 
-  // Initialize WebView Panel Manager
-  const messageRouter = new MessageRouter(context, graphragClient, visualizationHandler, mageAgentClient);
+  // Initialize WebView Panel Manager with chat client for intelligent routing
+  const messageRouter = new MessageRouter(context, graphragClient, visualizationHandler, chatClient);
   WebViewPanelManager.initialize(context, messageRouter);
 
   // Store clients in context for commands to access
