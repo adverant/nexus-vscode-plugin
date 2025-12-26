@@ -51,6 +51,71 @@
         "command": "nexus.configure",
         "title": "Nexus: Configure API Settings",
         "category": "Nexus"
+      },
+      {
+        "command": "nexus.indexRepository",
+        "title": "Nexus: Index Repository",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.queryKnowledgeGraph",
+        "title": "Nexus: Query Knowledge Graph",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.explainCode",
+        "title": "Nexus: Explain Code (with History)",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.impactAnalysis",
+        "title": "Nexus: Analyze Impact",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.fileHistory",
+        "title": "Nexus: Show File History",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.dependencyGraph",
+        "title": "NexusMind: Dependency Graph",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.evolutionTimeline",
+        "title": "NexusMind: Evolution Timeline",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.impactRipple",
+        "title": "NexusMind: Impact Ripple",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.semanticClusters",
+        "title": "NexusMind: Semantic Clusters",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.architectureAnalyze",
+        "title": "NexusMind: Analyze Architecture",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.nlQuery",
+        "title": "NexusMind: Natural Language Query",
+        "category": "NexusMind"
+      },
+      {
+        "command": "nexus.securityScan",
+        "title": "Nexus: Security Scan",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.generateTests",
+        "title": "Nexus: Generate Tests",
+        "category": "Nexus"
       }
     ],
     "configuration": {
@@ -168,13 +233,16 @@
   "dependencies": {
     "axios": "^1.6.0",
     "glob": "^13.0.0",
+    "pino": "^8.17.0",
     "simple-git": "^3.22.0",
     "tree-sitter": "^0.21.0",
     "tree-sitter-go": "^0.21.0",
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-python": "^0.21.0",
     "tree-sitter-rust": "^0.21.0",
-    "tree-sitter-typescript": "^0.21.0"
+    "tree-sitter-typescript": "^0.21.0",
+    "uuid": "^9.0.1",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
