@@ -1,19 +1,136 @@
 {
-  "name": "@adverant/nexus-cursor-plugin",
+  "name": "@adverant/nexus-vscode-plugin",
+  "displayName": "Nexus - GraphRAG Code Intelligence",
   "version": "0.1.0",
-  "description": "GraphRAG-powered code intelligence for Cursor IDE via Model Context Protocol",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "bin": {
-    "nexus-cursor": "./dist/index.js"
+  "publisher": "adverant",
+  "description": "GraphRAG-powered code intelligence for VS Code with Enhanced RAG, Qwen2.5 72B integration, and episodic memory",
+  "icon": "docs/images/adverant-logo-icon.png",
+  "main": "dist/extension.js",
+  "types": "dist/extension.d.ts",
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=20.0.0"
   },
-  "homepage": "https://github.com/adverant/nexus-cursor-plugin#readme",
+  "categories": [
+    "Machine Learning",
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "nexus.storeMemory",
+        "title": "Nexus: Store Memory",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.recallMemory",
+        "title": "Nexus: Recall Memory",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.enhancedSearch",
+        "title": "Nexus: Enhanced Search",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.analyzeQuery",
+        "title": "Nexus: Analyze Query",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.showNexusMind",
+        "title": "Nexus: Show NexusMind Visualization",
+        "category": "Nexus"
+      },
+      {
+        "command": "nexus.configure",
+        "title": "Nexus: Configure API Settings",
+        "category": "Nexus"
+      }
+    ],
+    "configuration": {
+      "title": "Nexus",
+      "properties": {
+        "nexus.apiEndpoint": {
+          "type": "string",
+          "default": "https://api.adverant.ai",
+          "description": "Nexus API endpoint URL"
+        },
+        "nexus.enhancedApiEndpoint": {
+          "type": "string",
+          "default": "http://localhost:9051",
+          "description": "GraphRAG Enhanced API endpoint URL"
+        },
+        "nexus.companyId": {
+          "type": "string",
+          "default": "adverant",
+          "description": "Company/Tenant ID for GraphRAG"
+        },
+        "nexus.appId": {
+          "type": "string",
+          "default": "vscode-nexus",
+          "description": "Application ID for GraphRAG"
+        },
+        "nexus.enableEnhancedRAG": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable GraphRAG Enhanced with query rewriting, HyDE, and self-correction"
+        },
+        "nexus.enableQwen": {
+          "type": "boolean",
+          "default": true,
+          "description": "Use Qwen2.5 72B for query enhancement (requires Ollama)"
+        },
+        "nexus.ollamaEndpoint": {
+          "type": "string",
+          "default": "http://localhost:11434",
+          "description": "Ollama API endpoint for Qwen2.5 72B"
+        },
+        "nexus.autoCapture": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically capture code changes as memories"
+        }
+      }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "nexus",
+          "title": "Nexus",
+          "icon": "resources/nexus-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "nexus": [
+        {
+          "id": "nexusMemories",
+          "name": "Memories",
+          "icon": "resources/nexus-icon.svg",
+          "contextualTitle": "Nexus Memories"
+        },
+        {
+          "id": "nexusMind",
+          "name": "NexusMind",
+          "icon": "resources/nexus-icon.svg",
+          "contextualTitle": "NexusMind Visualization"
+        }
+      ]
+    }
+  },
+  "homepage": "https://github.com/adverant/nexus-vscode-plugin#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/adverant/nexus-cursor-plugin.git"
+    "url": "git+https://github.com/adverant/nexus-vscode-plugin.git"
   },
   "bugs": {
-    "url": "https://github.com/adverant/nexus-cursor-plugin/issues",
+    "url": "https://github.com/adverant/nexus-vscode-plugin/issues",
     "email": "support@adverant.ai"
   },
   "author": {
@@ -23,10 +140,10 @@
   },
   "license": "MIT",
   "keywords": [
-    "cursor",
-    "mcp",
-    "model-context-protocol",
+    "vscode",
     "graphrag",
+    "enhanced-rag",
+    "qwen",
     "code-intelligence",
     "ai",
     "tree-sitter",
@@ -34,42 +151,40 @@
     "code-analysis",
     "knowledge-graph",
     "semantic-search",
-    "code-navigation"
+    "code-navigation",
+    "episodic-memory"
   ],
   "scripts": {
-    "build": "tsc",
-    "dev": "tsx watch src/index.ts",
-    "start": "node dist/index.js",
+    "vscode:prepublish": "npm run build",
+    "build": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "package": "vsce package",
+    "publish": "vsce publish",
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.24.3",
     "axios": "^1.6.0",
     "glob": "^13.0.0",
-    "pino": "^8.17.0",
     "simple-git": "^3.22.0",
     "tree-sitter": "^0.21.0",
     "tree-sitter-go": "^0.21.0",
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-python": "^0.21.0",
     "tree-sitter-rust": "^0.21.0",
-    "tree-sitter-typescript": "^0.21.0",
-    "zod": "^3.25.76"
+    "tree-sitter-typescript": "^0.21.0"
   },
   "devDependencies": {
     "@types/glob": "^8.1.0",
-    "@types/node": "^24.10.1",
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
     "@typescript-eslint/eslint-plugin": "^6.13.0",
     "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/vsce": "^2.22.0",
     "eslint": "^8.55.0",
-    "tsx": "^4.6.0",
     "typescript": "^5.3.0",
     "vitest": "^1.6.1"
-  },
-  "engines": {
-    "node": ">=20.0.0"
   }
 }
