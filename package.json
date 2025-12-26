@@ -117,8 +117,7 @@
       {
         "command": "nexus.openPanel",
         "key": "cmd+shift+n",
-        "mac": "cmd+shift+n",
-        "when": "editorTextFocus"
+        "mac": "cmd+shift+n"
       }
     ],
     "configuration": {
