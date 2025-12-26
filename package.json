@@ -151,7 +151,7 @@
         {
           "id": "nexus",
           "title": "Nexus",
-          "icon": "resources/nexus-icon.svg"
+          "icon": "resources/adverant-icon.svg"
         }
       ]
     },
@@ -160,13 +160,13 @@
         {
           "id": "nexusMemories",
           "name": "Memories",
-          "icon": "resources/nexus-icon.svg",
+          "icon": "resources/adverant-icon.svg",
           "contextualTitle": "Nexus Memories"
         },
         {
           "id": "nexusMind",
           "name": "NexusMind",
-          "icon": "resources/nexus-icon.svg",
+          "icon": "resources/adverant-icon.svg",
           "contextualTitle": "NexusMind Visualization"
         }
       ]

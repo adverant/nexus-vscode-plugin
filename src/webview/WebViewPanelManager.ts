@@ -69,7 +69,7 @@ export class WebViewPanelManager {
 
       // Set icon
       this.panel.iconPath = vscode.Uri.file(
-        path.join(this.context.extensionPath, 'resources', 'nexus-icon.svg')
+        path.join(this.context.extensionPath, 'resources', 'adverant-icon.svg')
       );
 
       // Handle messages from webview
