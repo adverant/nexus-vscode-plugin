@@ -3,7 +3,7 @@
   "displayName": "Nexus - GraphRAG Code Intelligence",
   "version": "0.1.0",
   "publisher": "adverant",
-  "description": "GraphRAG-powered code intelligence for VS Code with Enhanced RAG, Qwen2.5 72B integration, and episodic memory",
+  "description": "GraphRAG-powered code intelligence for VS Code with NexusMind visualization, episodic memory, and multi-model AI",
   "icon": "docs/images/adverant-logo-icon.png",
   "main": "dist/extension.js",
   "types": "dist/extension.d.ts",
@@ -30,16 +30,6 @@
       {
         "command": "nexus.recallMemory",
         "title": "Nexus: Recall Memory",
-        "category": "Nexus"
-      },
-      {
-        "command": "nexus.enhancedSearch",
-        "title": "Nexus: Enhanced Search",
-        "category": "Nexus"
-      },
-      {
-        "command": "nexus.analyzeQuery",
-        "title": "Nexus: Analyze Query",
         "category": "Nexus"
       },
       {
@@ -124,42 +114,22 @@
         "nexus.apiEndpoint": {
           "type": "string",
           "default": "https://api.adverant.ai",
-          "description": "Nexus API endpoint URL"
+          "description": "Nexus GraphRAG API endpoint URL"
         },
-        "nexus.enhancedApiEndpoint": {
+        "nexus.mageAgentEndpoint": {
           "type": "string",
-          "default": "http://localhost:9051",
-          "description": "GraphRAG Enhanced API endpoint URL"
+          "default": "https://api.adverant.ai",
+          "description": "MageAgent API endpoint URL"
         },
-        "nexus.companyId": {
-          "type": "string",
-          "default": "adverant",
-          "description": "Company/Tenant ID for GraphRAG"
-        },
-        "nexus.appId": {
-          "type": "string",
-          "default": "vscode-nexus",
-          "description": "Application ID for GraphRAG"
-        },
-        "nexus.enableEnhancedRAG": {
+        "nexus.autoIndex": {
           "type": "boolean",
-          "default": true,
-          "description": "Enable GraphRAG Enhanced with query rewriting, HyDE, and self-correction"
+          "default": false,
+          "description": "Automatically index repository on open"
         },
-        "nexus.enableQwen": {
-          "type": "boolean",
-          "default": true,
-          "description": "Use Qwen2.5 72B for query enhancement (requires Ollama)"
-        },
-        "nexus.ollamaEndpoint": {
-          "type": "string",
-          "default": "http://localhost:11434",
-          "description": "Ollama API endpoint for Qwen2.5 72B"
-        },
-        "nexus.autoCapture": {
-          "type": "boolean",
-          "default": true,
-          "description": "Automatically capture code changes as memories"
+        "nexus.maxFileSize": {
+          "type": "number",
+          "default": 1048576,
+          "description": "Maximum file size to index (in bytes, default 1MB)"
         }
       }
     },
@@ -207,17 +177,18 @@
   "keywords": [
     "vscode",
     "graphrag",
-    "enhanced-rag",
-    "qwen",
     "code-intelligence",
     "ai",
+    "nexusmind",
+    "visualization",
     "tree-sitter",
     "ast",
     "code-analysis",
     "knowledge-graph",
     "semantic-search",
     "code-navigation",
-    "episodic-memory"
+    "episodic-memory",
+    "mageagent"
   ],
   "scripts": {
     "vscode:prepublish": "npm run build",
