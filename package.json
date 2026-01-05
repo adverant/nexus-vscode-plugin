@@ -232,7 +232,7 @@
     "tree-sitter-java": "^0.21.0",
     "tree-sitter-python": "^0.21.0",
     "tree-sitter-rust": "^0.21.0",
-    "tree-sitter-typescript": "^0.21.0",
+    "tree-sitter-typescript": "^0.23.2",
     "uuid": "^9.0.1",
     "zod": "^3.25.76"
   },
