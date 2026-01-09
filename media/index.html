@@ -10,200 +10,571 @@
     <div class="container">
         <!-- Tab Navigation -->
         <div class="tabs">
-            <button class="tab active" data-tab="dashboard">Dashboard</button>
-            <button class="tab" data-tab="visualizations">Visualizations</button>
-            <button class="tab" data-tab="intelligence">Code Intelligence</button>
-            <button class="tab" data-tab="security">Security & Testing</button>
+            <button class="tab active" data-tab="home">Home</button>
+            <button class="tab" data-tab="memory">Memory</button>
+            <button class="tab" data-tab="explore">Explore</button>
+            <button class="tab" data-tab="settings">Settings</button>
         </div>
 
-        <!-- Dashboard Tab -->
-        <div class="tab-content active" id="dashboard">
+        <!-- ================================================================
+             HOME TAB
+             ================================================================ -->
+        <div class="tab-content active" id="home">
+            <!-- Connection Status -->
             <div class="section">
-                <h2>API Status</h2>
-                <div id="api-status" class="card">
-                    <div class="loading-spinner"></div>
-                    <p>Checking API connection...</p>
+                <div id="connection-status" class="connection-card">
+                    <div class="connection-indicator loading"></div>
+                    <div class="connection-info">
+                        <span class="connection-label">Connecting...</span>
+                    </div>
                 </div>
             </div>
 
+            <!-- Quick Actions -->
             <div class="section">
                 <h2>Quick Actions</h2>
                 <div class="action-grid">
                     <button class="action-card" data-action="storeMemory">
-                        <span class="icon">💾</span>
-                        <h3>Store Memory</h3>
-                        <p>Save selected code to knowledge graph</p>
+                        <div class="action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                <polyline points="17 21 17 13 7 13 7 21"/>
+                                <polyline points="7 3 7 8 15 8"/>
+                            </svg>
+                        </div>
+                        <span class="action-label">Store Memory</span>
                     </button>
                     <button class="action-card" data-action="recallMemory">
-                        <span class="icon">🔍</span>
-                        <h3>Recall Memory</h3>
-                        <p>Search stored memories</p>
+                        <div class="action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                        </div>
+                        <span class="action-label">Search</span>
                     </button>
                     <button class="action-card" data-action="indexRepository">
-                        <span class="icon">📦</span>
-                        <h3>Index Repository</h3>
-                        <p>Build knowledge graph</p>
+                        <div class="action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+                                <polyline points="3.27 6.96 12 12.01 20.73 6.96"/>
+                                <line x1="12" y1="22.08" x2="12" y2="12"/>
+                            </svg>
+                        </div>
+                        <span class="action-label">Index Repo</span>
                     </button>
                     <button class="action-card" data-action="queryKnowledgeGraph">
-                        <span class="icon">💬</span>
-                        <h3>Query Graph</h3>
-                        <p>Ask questions about your code</p>
+                        <div class="action-icon">
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                            </svg>
+                        </div>
+                        <span class="action-label">Query Graph</span>
                     </button>
                 </div>
             </div>
 
+            <!-- Plugin Status -->
             <div class="section">
-                <h2>Recent Memories</h2>
-                <div id="recent-memories" class="card">
-                    <div class="loading-spinner"></div>
-                    <p>Loading recent memories...</p>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Plugins</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div id="plugin-status" class="plugin-grid">
+                        <div class="plugin-card skeleton"></div>
+                        <div class="plugin-card skeleton"></div>
+                        <div class="plugin-card skeleton"></div>
+                        <div class="plugin-card skeleton"></div>
+                    </div>
                 </div>
             </div>
 
+            <!-- Recent Activity -->
             <div class="section">
-                <h2>Repository Stats</h2>
-                <div id="repo-stats" class="card">
-                    <div class="loading-spinner"></div>
-                    <p>Loading statistics...</p>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Recent Memories</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </div>
-            </div>
-        </div>
-
-        <!-- Visualizations Tab -->
-        <div class="tab-content" id="visualizations">
-            <div class="section">
-                <h2>Visualization Controls</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="viz-type">Visualization Type</label>
-                        <select id="viz-type">
-                            <option value="dependencyGraph">Dependency Graph</option>
-                            <option value="evolutionTimeline">Evolution Timeline</option>
-                            <option value="impactRipple">Impact Ripple</option>
-                            <option value="semanticClusters">Semantic Clusters</option>
-                            <option value="architecture">Architecture Analysis</option>
-                            <option value="nlQuery">Natural Language Query</option>
-                        </select>
+                <div class="section-content">
+                    <div id="recent-memories" class="activity-list">
+                        <div class="empty-state">
+                            <p>No recent memories</p>
+                        </div>
                     </div>
-
-                    <div class="control-group" id="file-path-group">
-                        <label for="file-path">File/Folder Path (optional)</label>
-                        <input type="text" id="file-path" placeholder="e.g., src/index.ts (defaults to src/extension.ts)">
-                    </div>
-
-                    <div class="control-group" id="layout-group" style="display: none;">
-                        <label for="layout-algorithm">Layout Algorithm</label>
-                        <select id="layout-algorithm">
-                            <option value="force">Force-Directed</option>
-                            <option value="hierarchical">Hierarchical</option>
-                            <option value="radial">Radial</option>
-                            <option value="organic">Organic</option>
-                        </select>
-                    </div>
-
-                    <div class="control-group" id="query-group" style="display: none;">
-                        <label for="nl-query">Natural Language Query</label>
-                        <input type="text" id="nl-query" placeholder="e.g., Show me all API endpoints">
-                    </div>
-
-                    <button id="generate-viz" class="primary-button">Generate Visualization</button>
                 </div>
             </div>
 
+            <!-- Stats -->
             <div class="section">
-                <h2>Visualization</h2>
-                <div id="viz-container" class="viz-container">
-                    <div class="placeholder">
-                        <p>Configure settings above and click "Generate Visualization"</p>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Repository Stats</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div id="repo-stats" class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Memories</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Entities</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value">--</div>
+                            <div class="stat-label">Relationships</div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Code Intelligence Tab -->
-        <div class="tab-content" id="intelligence">
+        <!-- ================================================================
+             MEMORY TAB
+             ================================================================ -->
+        <div class="tab-content" id="memory">
+            <!-- Store Memory -->
             <div class="section">
-                <h2>Code Input</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="code-input">Code (or use current selection)</label>
-                        <textarea id="code-input" rows="10" placeholder="Paste code here or click 'Use Selection'"></textarea>
-                    </div>
-                    <div class="button-group">
-                        <button id="use-selection" class="secondary-button">Use Selection</button>
-                        <button id="explain-code" class="primary-button">Explain Code</button>
-                        <button id="analyze-impact" class="primary-button">Analyze Impact</button>
-                        <button id="view-history" class="primary-button">View History</button>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Store Memory</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div class="form-card">
+                        <div class="form-group">
+                            <label for="memory-title">Title</label>
+                            <input type="text" id="memory-title" placeholder="e.g., API authentication pattern">
+                        </div>
+                        <div class="form-group">
+                            <label for="memory-content">Content</label>
+                            <textarea id="memory-content" rows="4" placeholder="Enter the information you want to remember..."></textarea>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="memory-tags">Tags</label>
+                                <input type="text" id="memory-tags" placeholder="auth, pattern, api">
+                            </div>
+                            <div class="form-group">
+                                <label for="memory-type">Type</label>
+                                <select id="memory-type">
+                                    <option value="memory">Memory</option>
+                                    <option value="preference">Preference</option>
+                                    <option value="learning">Learning</option>
+                                    <option value="decision">Decision</option>
+                                    <option value="pattern">Pattern</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="store-memory-btn" class="btn btn-primary">Store Memory</button>
                     </div>
                 </div>
             </div>
 
+            <!-- Upload Documents -->
+            <div class="section" id="upload-section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Upload Documents</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div class="form-card">
+                        <div id="upload-dropzone" class="upload-dropzone">
+                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.5">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                <polyline points="17 8 12 3 7 8"/>
+                                <line x1="12" y1="3" x2="12" y2="15"/>
+                            </svg>
+                            <p class="dropzone-text">Drag & drop files here</p>
+                            <p class="dropzone-hint">or click to browse</p>
+                            <p class="dropzone-formats">All files up to 5GB</p>
+                            <input type="file" id="file-upload-input" multiple style="display: none;">
+                        </div>
+                        <div class="form-row" style="margin-top: 16px;">
+                            <div class="form-group flex-1">
+                                <label for="upload-tags">Tags</label>
+                                <input type="text" id="upload-tags" placeholder="project-x, dataset">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="series-name">Collection Name</label>
+                                <input type="text" id="series-name" placeholder="e.g., Training Data v2">
+                            </div>
+                            <div class="form-group" style="width: 100px;">
+                                <label for="book-number">Seq #</label>
+                                <input type="number" id="book-number" min="1" placeholder="1">
+                            </div>
+                        </div>
+                        <div id="upload-queue" class="upload-queue"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Search Memories -->
             <div class="section">
-                <h2>Results</h2>
-                <div id="intelligence-results" class="results-container">
-                    <div class="placeholder">
-                        <p>Results will appear here</p>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Search Memories</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div class="form-card">
+                        <div class="search-bar">
+                            <input type="text" id="search-query" placeholder="Search memories, documents, entities...">
+                            <button id="search-memories-btn" class="btn btn-primary">Search</button>
+                        </div>
+                        <div class="form-row" style="margin-top: 12px;">
+                            <div class="form-group flex-1">
+                                <label for="filter-domain">Domain</label>
+                                <select id="filter-domain">
+                                    <option value="">All</option>
+                                    <option value="claude-code">Claude Code</option>
+                                    <option value="code">Code</option>
+                                    <option value="documents">Documents</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="filter-type">Type</label>
+                                <select id="filter-type">
+                                    <option value="">All</option>
+                                    <option value="memory">Memory</option>
+                                    <option value="document">Document</option>
+                                    <option value="entity">Entity</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="search-results" class="results-list">
+                        <div class="empty-state">
+                            <p>Search results will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Episodic Timeline -->
+            <div class="section">
+                <div class="section-header collapsed" onclick="toggleSection(this)">
+                    <h2>Episodic Timeline</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="form-card">
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="episode-start">From</label>
+                                <input type="date" id="episode-start">
+                            </div>
+                            <div class="form-group flex-1">
+                                <label for="episode-end">To</label>
+                                <input type="date" id="episode-end">
+                            </div>
+                            <button id="load-episodes-btn" class="btn btn-secondary" style="align-self: flex-end;">Load</button>
+                        </div>
+                    </div>
+                    <div id="episodic-timeline" class="timeline-list">
+                        <div class="empty-state">
+                            <p>Select a date range to view episodes</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Skills & Hooks -->
+            <div class="section">
+                <div class="section-header collapsed" onclick="toggleSection(this)">
+                    <h2>Skills & Hooks</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="two-column">
+                        <div class="column-card">
+                            <h3>Installed Skills</h3>
+                            <div id="skills-list" class="mini-list">
+                                <div class="empty-state small">
+                                    <p>No skills installed</p>
+                                </div>
+                            </div>
+                            <button id="add-skill-btn" class="btn btn-secondary btn-sm">Add Skill</button>
+                        </div>
+                        <div class="column-card">
+                            <h3>Active Hooks</h3>
+                            <div id="hooks-list" class="mini-list">
+                                <div class="empty-state small">
+                                    <p>No hooks configured</p>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Security & Testing Tab -->
-        <div class="tab-content" id="security">
+        <!-- ================================================================
+             EXPLORE TAB (Visualizations + Code Intelligence)
+             ================================================================ -->
+        <div class="tab-content" id="explore">
+            <!-- Visualizations -->
             <div class="section">
-                <h2>Security Scanner</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="repo-path">Repository Path</label>
-                        <input type="text" id="repo-path" placeholder="e.g., /Users/username/project">
-                    </div>
-                    <button id="run-security-scan" class="primary-button">Run Security Scan</button>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Visualizations</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </div>
-                <div id="security-results" class="results-container">
-                    <div class="placeholder">
-                        <p>Security scan results will appear here</p>
+                <div class="section-content">
+                    <div class="form-card">
+                        <div class="form-row">
+                            <div class="form-group flex-1">
+                                <label for="viz-type">Type</label>
+                                <select id="viz-type">
+                                    <option value="dependencyGraph">Dependency Graph</option>
+                                    <option value="evolutionTimeline">Evolution Timeline</option>
+                                    <option value="impactRipple">Impact Ripple</option>
+                                    <option value="semanticClusters">Semantic Clusters</option>
+                                    <option value="architecture">Architecture</option>
+                                    <option value="nlQuery">Natural Language</option>
+                                </select>
+                            </div>
+                            <div class="form-group flex-1" id="file-path-group">
+                                <label for="file-path">Path</label>
+                                <input type="text" id="file-path" placeholder="src/index.ts">
+                            </div>
+                        </div>
+                        <div class="form-row" id="layout-group" style="display: none;">
+                            <div class="form-group flex-1">
+                                <label for="layout-algorithm">Layout</label>
+                                <select id="layout-algorithm">
+                                    <option value="force">Force-Directed</option>
+                                    <option value="hierarchical">Hierarchical</option>
+                                    <option value="radial">Radial</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="form-row" id="query-group" style="display: none;">
+                            <div class="form-group flex-1">
+                                <label for="nl-query">Query</label>
+                                <input type="text" id="nl-query" placeholder="Show me all API endpoints">
+                            </div>
+                        </div>
+                        <button id="generate-viz" class="btn btn-primary">Generate</button>
+                    </div>
+                    <div id="viz-container" class="viz-container">
+                        <div class="empty-state">
+                            <p>Select options and click Generate</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
+            <!-- Code Intelligence -->
             <div class="section">
-                <h2>Test Generator</h2>
-                <div class="controls">
-                    <div class="control-group">
-                        <label for="test-code-input">Code to Test</label>
-                        <textarea id="test-code-input" rows="8" placeholder="Paste code here"></textarea>
-                    </div>
-                    <div class="control-group">
-                        <label for="test-framework">Testing Framework</label>
-                        <select id="test-framework">
-                            <option value="jest">Jest</option>
-                            <option value="mocha">Mocha</option>
-                            <option value="vitest">Vitest</option>
-                            <option value="pytest">Pytest (Python)</option>
-                        </select>
-                    </div>
-                    <button id="generate-tests" class="primary-button">Generate Tests</button>
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Code Intelligence</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
                 </div>
-                <div id="test-results" class="results-container">
-                    <div class="placeholder">
-                        <p>Generated tests will appear here</p>
+                <div class="section-content">
+                    <div class="form-card">
+                        <div class="form-group">
+                            <label for="code-input">Code</label>
+                            <textarea id="code-input" rows="6" placeholder="Paste code here or click 'Use Selection'"></textarea>
+                        </div>
+                        <div class="button-row">
+                            <button id="use-selection" class="btn btn-secondary">Use Selection</button>
+                            <button id="explain-code" class="btn btn-primary">Explain</button>
+                            <button id="analyze-impact" class="btn btn-primary">Impact</button>
+                            <button id="view-history" class="btn btn-secondary">History</button>
+                        </div>
+                    </div>
+                    <div id="intelligence-results" class="results-list">
+                        <div class="empty-state">
+                            <p>Results will appear here</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security & Testing -->
+            <div class="section">
+                <div class="section-header collapsed" onclick="toggleSection(this)">
+                    <h2>Security & Testing</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="two-column">
+                        <div class="column-card">
+                            <h3>Security Scan</h3>
+                            <div class="form-group">
+                                <input type="text" id="repo-path" placeholder="Repository path">
+                            </div>
+                            <button id="run-security-scan" class="btn btn-primary btn-sm">Scan</button>
+                            <div id="security-results" class="mini-results"></div>
+                        </div>
+                        <div class="column-card">
+                            <h3>Test Generator</h3>
+                            <div class="form-group">
+                                <textarea id="test-code-input" rows="4" placeholder="Code to test"></textarea>
+                            </div>
+                            <div class="form-group">
+                                <select id="test-framework">
+                                    <option value="jest">Jest</option>
+                                    <option value="vitest">Vitest</option>
+                                    <option value="pytest">Pytest</option>
+                                </select>
+                            </div>
+                            <button id="generate-tests" class="btn btn-primary btn-sm">Generate</button>
+                            <div id="test-results" class="mini-results"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ================================================================
+             SETTINGS TAB
+             ================================================================ -->
+        <div class="tab-content" id="settings">
+            <!-- Account -->
+            <div class="section">
+                <h2>Account</h2>
+                <div id="account-info" class="account-card">
+                    <div class="account-avatar" id="account-avatar">?</div>
+                    <div class="account-details">
+                        <div class="account-email" id="account-email">Not connected</div>
+                        <div class="account-tier" id="account-tier">Configure API key to connect</div>
+                    </div>
+                    <div class="account-actions">
+                        <button id="configure-api-btn" class="btn btn-secondary">Configure</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- API Keys -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>API Keys</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <p class="section-description">Manage API keys for CLI and integrations. Generate keys at <a href="https://dashboard.adverant.ai" target="_blank">dashboard.adverant.ai</a></p>
+                    <div id="api-keys-list" class="api-keys-list">
+                        <div class="empty-state small">
+                            <p>No API keys configured</p>
+                        </div>
+                    </div>
+                    <button id="add-api-key-btn" class="btn btn-primary">Add API Key</button>
+                </div>
+            </div>
+
+            <!-- Subscriptions -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h2>Subscriptions</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content">
+                    <div id="subscriptions-list" class="subscriptions-grid">
+                        <div class="empty-state small">
+                            <p>Connect account to view subscriptions</p>
+                        </div>
+                    </div>
+                    <a href="https://dashboard.adverant.ai/dashboard/plugins" target="_blank" class="btn btn-secondary">Manage Subscriptions</a>
+                </div>
+            </div>
+
+            <!-- Preferences -->
+            <div class="section">
+                <div class="section-header collapsed" onclick="toggleSection(this)">
+                    <h2>Preferences</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="form-card">
+                        <div class="preference-item">
+                            <div class="preference-info">
+                                <div class="preference-label">Auto-index on open</div>
+                                <div class="preference-description">Automatically index repository when opened</div>
+                            </div>
+                            <label class="toggle">
+                                <input type="checkbox" id="pref-auto-index">
+                                <span class="toggle-slider"></span>
+                            </label>
+                        </div>
+                        <div class="preference-item">
+                            <div class="preference-info">
+                                <div class="preference-label">API Endpoint</div>
+                                <div class="preference-description">GraphRAG API server URL</div>
+                            </div>
+                            <input type="text" id="pref-api-endpoint" value="https://api.adverant.ai" class="preference-input">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Danger Zone -->
+            <div class="section danger-section">
+                <div class="section-header collapsed" onclick="toggleSection(this)">
+                    <h2>Danger Zone</h2>
+                    <svg class="chevron" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="6 9 12 15 18 9"/>
+                    </svg>
+                </div>
+                <div class="section-content" style="display: none;">
+                    <div class="danger-card">
+                        <div class="danger-item">
+                            <div class="danger-info">
+                                <div class="danger-label">Clear Local Data</div>
+                                <div class="danger-description">Remove all cached data from this extension</div>
+                            </div>
+                            <button id="clear-local-data" class="btn btn-danger btn-sm">Clear</button>
+                        </div>
+                        <div class="danger-item">
+                            <div class="danger-info">
+                                <div class="danger-label">Reset Configuration</div>
+                                <div class="danger-description">Reset all settings to defaults</div>
+                            </div>
+                            <button id="reset-config" class="btn btn-danger btn-sm">Reset</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Global Loading Overlay -->
+    <!-- Loading Overlay -->
     <div id="loading-overlay" class="loading-overlay" style="display: none;">
-        <div class="loading-spinner large"></div>
+        <div class="loading-spinner"></div>
         <p id="loading-message">Processing...</p>
     </div>
 
-    <!-- Error Toast -->
-    <div id="error-toast" class="error-toast" style="display: none;">
-        <span id="error-message"></span>
-        <button id="close-error">×</button>
-    </div>
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
 
     <!-- D3.js for visualizations -->
     <script nonce="{{nonce}}" src="https://d3js.org/d3.v7.min.js"></script>

@@ -1,20 +1,33 @@
+/**
+ * Nexus VSCode Plugin - Main JavaScript
+ * Handles UI interactions and communication with extension backend
+ */
 (function() {
-    // Get VSCode API
+    'use strict';
+
+    // ========================================================================
+    // VSCode API & State
+    // ========================================================================
+
     const vscode = acquireVsCodeApi();
-
-    // Pending requests map for correlation IDs
     const pendingRequests = new Map();
+    let uploadQueue = [];
+    let currentUser = null;
+    let pluginAccess = {
+        fileprocess: { allowed: false, message: 'Checking...' }
+    };
 
-    // Generate unique ID for requests
+    // ========================================================================
+    // Utility Functions
+    // ========================================================================
+
     function generateId() {
-        return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        return `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
     }
 
-    // Send request to extension
     function sendRequest(command, params) {
         return new Promise((resolve, reject) => {
             const id = generateId();
-
             pendingRequests.set(id, { resolve, reject });
 
             vscode.postMessage({
@@ -22,7 +35,6 @@
                 data: { id, command, params }
             });
 
-            // Timeout after 30 seconds
             setTimeout(() => {
                 if (pendingRequests.has(id)) {
                     pendingRequests.delete(id);
@@ -32,7 +44,10 @@
         });
     }
 
-    // Handle messages from extension
+    // ========================================================================
+    // Message Handling
+    // ========================================================================
+
     window.addEventListener('message', event => {
         const message = event.data;
 
@@ -57,168 +72,619 @@
         }
     });
 
-    // Show loading overlay
+    // ========================================================================
+    // UI Helpers
+    // ========================================================================
+
     function showLoading(message = 'Processing...') {
         const overlay = document.getElementById('loading-overlay');
         const messageEl = document.getElementById('loading-message');
-        messageEl.textContent = message;
-        overlay.style.display = 'flex';
+        if (messageEl) messageEl.textContent = message;
+        if (overlay) overlay.style.display = 'flex';
     }
 
-    // Hide loading overlay
     function hideLoading() {
-        document.getElementById('loading-overlay').style.display = 'none';
+        const overlay = document.getElementById('loading-overlay');
+        if (overlay) overlay.style.display = 'none';
     }
 
-    // Show error toast
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('toast-container');
+        if (!container) return;
+
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span>${message}</span>
+            <button class="toast-close" onclick="this.parentElement.remove()">×</button>
+        `;
+        container.appendChild(toast);
+
+        setTimeout(() => toast.remove(), 5000);
+    }
+
     function showError(message) {
-        const toast = document.getElementById('error-toast');
-        const messageEl = document.getElementById('error-message');
-        messageEl.textContent = message;
-        toast.style.display = 'flex';
-
-        setTimeout(() => {
-            toast.style.display = 'none';
-        }, 5000);
+        showToast(message, 'error');
     }
 
-    // Tab switching
+    function showSuccess(message) {
+        showToast(message, 'success');
+    }
+
+    // ========================================================================
+    // Tab Navigation
+    // ========================================================================
+
     function showTab(tabId) {
-        // Update tab buttons
         document.querySelectorAll('.tab').forEach(tab => {
-            tab.classList.remove('active');
-            if (tab.dataset.tab === tabId) {
-                tab.classList.add('active');
-            }
+            tab.classList.toggle('active', tab.dataset.tab === tabId);
         });
 
-        // Update tab content
         document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.remove('active');
-            if (content.id === tabId) {
-                content.classList.add('active');
-            }
+            content.classList.toggle('active', content.id === tabId);
         });
 
-        // Load tab-specific data
         loadTabData(tabId);
     }
 
-    // Load data for specific tabs
     function loadTabData(tabId) {
-        if (tabId === 'dashboard') {
-            loadDashboard();
+        switch (tabId) {
+            case 'home':
+                loadHomeTab();
+                break;
+            case 'memory':
+                loadMemoryTab();
+                break;
+            case 'explore':
+                // Explore tab loads on demand
+                break;
+            case 'settings':
+                loadSettingsTab();
+                break;
         }
     }
 
     // ========================================================================
-    // Dashboard Tab
+    // Section Toggle
     // ========================================================================
 
-    async function loadDashboard() {
+    window.toggleSection = function(header) {
+        const section = header.closest('.section');
+        const content = section.querySelector('.section-content');
+        const isCollapsed = header.classList.contains('collapsed');
+
+        header.classList.toggle('collapsed', !isCollapsed);
+        content.style.display = isCollapsed ? 'block' : 'none';
+    };
+
+    // ========================================================================
+    // HOME TAB
+    // ========================================================================
+
+    async function loadHomeTab() {
         await Promise.all([
-            loadApiStatus(),
+            loadConnectionStatus(),
+            loadPluginStatus(),
             loadRecentMemories(),
             loadRepoStats()
         ]);
     }
 
-    async function loadApiStatus() {
-        const statusEl = document.getElementById('api-status');
+    async function loadConnectionStatus() {
+        const statusEl = document.getElementById('connection-status');
+        if (!statusEl) return;
+
         try {
             const status = await sendRequest('getApiStatus', {});
+            const indicator = statusEl.querySelector('.connection-indicator');
+            const label = statusEl.querySelector('.connection-label');
 
             if (status.configured) {
-                statusEl.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span class="status-indicator connected"></span>
-                        <div>
-                            <h3 style="margin-bottom: 4px;">Connected</h3>
-                            <p style="opacity: 0.8; font-size: 12px;">GraphRAG API is configured and ready</p>
-                        </div>
-                    </div>
-                `;
+                indicator.className = 'connection-indicator connected';
+                label.textContent = 'Connected to GraphRAG API';
             } else {
-                statusEl.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <span class="status-indicator disconnected"></span>
-                        <div>
-                            <h3 style="margin-bottom: 4px;">Not Configured</h3>
-                            <p style="opacity: 0.8; font-size: 12px;">${status.error || 'API not configured'}</p>
-                            <button class="secondary-button" style="margin-top: 8px;" onclick="window.configureAPI()">Configure API</button>
-                        </div>
-                    </div>
-                `;
+                indicator.className = 'connection-indicator disconnected';
+                label.innerHTML = `Not configured. <a href="#" onclick="showTab('settings'); return false;">Configure API</a>`;
             }
         } catch (error) {
-            statusEl.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <span class="status-indicator disconnected"></span>
-                    <div>
-                        <h3 style="margin-bottom: 4px;">Error</h3>
-                        <p style="opacity: 0.8; font-size: 12px;">${error.message}</p>
+            const indicator = statusEl.querySelector('.connection-indicator');
+            const label = statusEl.querySelector('.connection-label');
+            indicator.className = 'connection-indicator disconnected';
+            label.textContent = `Error: ${error.message}`;
+        }
+    }
+
+    async function loadPluginStatus() {
+        const statusEl = document.getElementById('plugin-status');
+        if (!statusEl) return;
+
+        try {
+            const subscription = await sendRequest('getUserSubscription', {});
+
+            if (!subscription) {
+                statusEl.innerHTML = '<div class="empty-state small"><p>Connect account to view plugins</p></div>';
+                return;
+            }
+
+            const plugins = subscription.plugins || [];
+            // Map internal names to addon slugs used in the backend
+            const corePlugins = [
+                { name: 'graphrag', slugs: ['graph-rag', 'graphrag'], displayName: 'GraphRAG Core' },
+                { name: 'fileprocess', slugs: ['file-processing', 'fileprocess'], displayName: 'FileProcess' },
+                { name: 'geoagent', slugs: ['geo-agent', 'geoagent'], displayName: 'GeoAgent' },
+                { name: 'crm', slugs: ['nexus-crm', 'crm'], displayName: 'CRM' }
+            ];
+
+            let html = '';
+            for (const core of corePlugins) {
+                // Match plugin by any of the possible slugs (addon_name or pluginName)
+                const plugin = plugins.find(p =>
+                    core.slugs.includes(p.pluginName) ||
+                    core.slugs.includes(p.pluginId) ||
+                    p.pluginName === core.name
+                );
+                // GraphRAG Core is always enabled by default
+                const subscribed = core.name === 'graphrag' ? true : (plugin?.subscribed || false);
+                const tier = plugin?.tier || 'free';
+
+                html += `
+                    <div class="plugin-card ${subscribed ? 'active' : ''}">
+                        <div class="plugin-name">${core.displayName}</div>
+                        <div class="plugin-tier">${subscribed ? tier : 'Not subscribed'}</div>
+                        <span class="status-badge ${subscribed ? 'active' : 'inactive'}">
+                            ${subscribed ? 'Active' : 'Inactive'}
+                        </span>
                     </div>
-                </div>
-            `;
+                `;
+
+                if (core.name === 'fileprocess') {
+                    pluginAccess.fileprocess = { allowed: subscribed, message: subscribed ? '' : 'Requires FileProcess plugin' };
+                }
+            }
+
+            statusEl.innerHTML = html;
+            updateUploadAvailability();
+
+        } catch (error) {
+            statusEl.innerHTML = `<div class="empty-state small"><p>Unable to load plugins: ${error.message}</p></div>`;
         }
     }
 
     async function loadRecentMemories() {
         const memoriesEl = document.getElementById('recent-memories');
+        if (!memoriesEl) return;
+
         try {
             const data = await sendRequest('getRecentMemories', { limit: 5 });
 
             if (data.memories && data.memories.length > 0) {
                 memoriesEl.innerHTML = data.memories.map(m => `
-                    <div class="card" style="margin-bottom: 8px;">
-                        <p style="font-size: 12px; margin-bottom: 4px; opacity: 0.8;">Score: ${m.score.toFixed(2)}</p>
-                        <p style="font-size: 13px;">${m.content.substring(0, 150)}${m.content.length > 150 ? '...' : ''}</p>
+                    <div class="memory-result">
+                        <div class="memory-result-header">
+                            <span class="memory-result-type">${m.type || 'memory'}</span>
+                            <span class="memory-result-score">Score: ${m.score?.toFixed(2) || '--'}</span>
+                        </div>
+                        <div class="memory-result-content">
+                            ${(m.content || '').substring(0, 150)}${(m.content || '').length > 150 ? '...' : ''}
+                        </div>
                     </div>
                 `).join('');
             } else {
-                memoriesEl.innerHTML = '<p style="opacity: 0.7;">No memories stored yet. Use "Store Memory" to save code.</p>';
+                memoriesEl.innerHTML = '<div class="empty-state"><p>No recent memories</p></div>';
             }
         } catch (error) {
-            memoriesEl.innerHTML = `<p style="opacity: 0.7;">Unable to load memories: ${error.message}</p>`;
+            memoriesEl.innerHTML = `<div class="empty-state"><p>Unable to load: ${error.message}</p></div>`;
         }
     }
 
     async function loadRepoStats() {
         const statsEl = document.getElementById('repo-stats');
+        if (!statsEl) return;
+
         try {
-            const workspaceFolders = await vscode.postMessage({ type: 'getWorkspaceFolders' });
-            // For now, show placeholder stats
-            statsEl.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
-                    <div style="text-align: center;">
-                        <h3 style="font-size: 24px; margin-bottom: 4px;">--</h3>
-                        <p style="font-size: 12px; opacity: 0.7;">Files Indexed</p>
-                    </div>
-                    <div style="text-align: center;">
-                        <h3 style="font-size: 24px; margin-bottom: 4px;">--</h3>
-                        <p style="font-size: 12px; opacity: 0.7;">Entities</p>
-                    </div>
-                    <div style="text-align: center;">
-                        <h3 style="font-size: 24px; margin-bottom: 4px;">--</h3>
-                        <p style="font-size: 12px; opacity: 0.7;">Relationships</p>
-                    </div>
-                </div>
-                <p style="margin-top: 12px; font-size: 12px; opacity: 0.7; text-align: center;">
-                    Run "Index Repository" to build knowledge graph
-                </p>
-            `;
+            const stats = await sendRequest('getRepoStats', {});
+            const statCards = statsEl.querySelectorAll('.stat-card');
+
+            if (statCards.length >= 3) {
+                statCards[0].querySelector('.stat-value').textContent = stats.memories || '--';
+                statCards[1].querySelector('.stat-value').textContent = stats.entities || '--';
+                statCards[2].querySelector('.stat-value').textContent = stats.relationships || '--';
+            }
         } catch (error) {
-            statsEl.innerHTML = `<p style="opacity: 0.7;">Unable to load stats: ${error.message}</p>`;
+            // Keep defaults
         }
     }
 
-    // Quick actions
-    window.configureAPI = function() {
-        vscode.postMessage({ type: 'executeCommand', command: 'nexus.configure', args: [] });
-    };
+    // ========================================================================
+    // MEMORY TAB
+    // ========================================================================
+
+    async function loadMemoryTab() {
+        loadSkillsAndHooks();
+    }
+
+    async function storeMemoryFromForm() {
+        const title = document.getElementById('memory-title').value;
+        const content = document.getElementById('memory-content').value;
+        const tags = document.getElementById('memory-tags').value;
+        const type = document.getElementById('memory-type').value;
+
+        if (!content.trim()) {
+            showError('Please enter content to store');
+            return;
+        }
+
+        try {
+            showLoading('Storing memory...');
+            await sendRequest('storeMemory', {
+                content: title ? `${title}\n\n${content}` : content,
+                tags: tags ? tags.split(',').map(t => t.trim()).filter(t => t) : [],
+                metadata: { type }
+            });
+
+            hideLoading();
+            showSuccess('Memory stored successfully');
+
+            // Clear form
+            document.getElementById('memory-title').value = '';
+            document.getElementById('memory-content').value = '';
+            document.getElementById('memory-tags').value = '';
+        } catch (error) {
+            hideLoading();
+            showError(error.message);
+        }
+    }
+
+    async function searchMemories() {
+        const query = document.getElementById('search-query').value;
+        const domain = document.getElementById('filter-domain').value;
+        const type = document.getElementById('filter-type').value;
+        const resultsEl = document.getElementById('search-results');
+
+        if (!query.trim()) {
+            showError('Please enter a search query');
+            return;
+        }
+
+        try {
+            showLoading('Searching...');
+            const data = await sendRequest('searchMemories', {
+                query,
+                domain: domain || undefined,
+                type: type || undefined,
+                limit: 20
+            });
+
+            hideLoading();
+
+            if (data.results && data.results.length > 0) {
+                resultsEl.innerHTML = data.results.map(r => `
+                    <div class="memory-result">
+                        <div class="memory-result-header">
+                            <span class="memory-result-type">${r.type || 'result'}</span>
+                            <span class="memory-result-score">Score: ${r.score?.toFixed(2) || '--'}</span>
+                        </div>
+                        <div class="memory-result-content">${(r.content || '').substring(0, 300)}...</div>
+                        ${r.tags?.length ? `
+                            <div class="memory-result-tags">
+                                ${r.tags.map(t => `<span class="memory-tag">${t}</span>`).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('');
+            } else {
+                resultsEl.innerHTML = '<div class="empty-state"><p>No results found</p></div>';
+            }
+        } catch (error) {
+            hideLoading();
+            resultsEl.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+        }
+    }
+
+    async function loadEpisodes() {
+        const startDate = document.getElementById('episode-start').value;
+        const endDate = document.getElementById('episode-end').value;
+        const timelineEl = document.getElementById('episodic-timeline');
+
+        try {
+            showLoading('Loading episodes...');
+            const data = await sendRequest('getEpisodicData', {
+                timeRange: { start: startDate, end: endDate },
+                limit: 50
+            });
+
+            hideLoading();
+
+            if (data.sessions && data.sessions.length > 0) {
+                timelineEl.innerHTML = data.sessions.map(session => `
+                    <div class="timeline-session">
+                        <div class="timeline-session-header">
+                            <span class="timeline-session-id">${session.sessionId?.substring(0, 8) || 'Unknown'}...</span>
+                            <span class="timeline-session-date">${session.firstEvent ? new Date(session.firstEvent).toLocaleDateString() : ''}</span>
+                        </div>
+                        <div class="timeline-events">${session.eventCount} events</div>
+                    </div>
+                `).join('');
+            } else {
+                timelineEl.innerHTML = '<div class="empty-state"><p>No episodes found</p></div>';
+            }
+        } catch (error) {
+            hideLoading();
+            timelineEl.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+        }
+    }
+
+    async function loadSkillsAndHooks() {
+        const skillsList = document.getElementById('skills-list');
+        const hooksList = document.getElementById('hooks-list');
+
+        try {
+            const data = await sendRequest('getSkillsAndHooks', {});
+
+            if (skillsList && data.skills) {
+                if (data.skills.length > 0) {
+                    skillsList.innerHTML = data.skills.map(skill => `
+                        <div class="memory-result">
+                            <div class="memory-result-header">
+                                <span class="memory-result-type">${skill.name}</span>
+                            </div>
+                            <div class="memory-result-content">${skill.description || 'No description'}</div>
+                        </div>
+                    `).join('');
+                } else {
+                    skillsList.innerHTML = '<div class="empty-state small"><p>No skills installed</p></div>';
+                }
+            }
+
+            if (hooksList && data.hooks) {
+                if (data.hooks.length > 0) {
+                    hooksList.innerHTML = data.hooks.map(hook => `
+                        <div class="memory-result">
+                            <div class="memory-result-header">
+                                <span class="memory-result-type">${hook.event}</span>
+                            </div>
+                            <div class="memory-result-content" style="font-family: monospace; font-size: 11px;">
+                                ${hook.command}
+                            </div>
+                        </div>
+                    `).join('');
+                } else {
+                    hooksList.innerHTML = '<div class="empty-state small"><p>No hooks configured</p></div>';
+                }
+            }
+        } catch (error) {
+            if (skillsList) skillsList.innerHTML = '<div class="empty-state small"><p>Error loading skills</p></div>';
+            if (hooksList) hooksList.innerHTML = '<div class="empty-state small"><p>Error loading hooks</p></div>';
+        }
+    }
 
     // ========================================================================
-    // Visualizations Tab
+    // UPLOAD FUNCTIONALITY
+    // ========================================================================
+
+    function updateUploadAvailability() {
+        const dropzone = document.getElementById('upload-dropzone');
+        if (!dropzone) return;
+
+        if (!pluginAccess.fileprocess.allowed) {
+            dropzone.classList.add('locked');
+        } else {
+            dropzone.classList.remove('locked');
+        }
+    }
+
+    function setupUploadHandlers() {
+        const dropzone = document.getElementById('upload-dropzone');
+        const fileInput = document.getElementById('file-upload-input');
+
+        if (!dropzone || !fileInput) return;
+
+        dropzone.addEventListener('click', () => {
+            if (!pluginAccess.fileprocess.allowed) {
+                showError('FileProcess plugin required for uploads');
+                return;
+            }
+            fileInput.click();
+        });
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            if (pluginAccess.fileprocess.allowed) {
+                dropzone.classList.add('drag-over');
+            }
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('drag-over');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('drag-over');
+            if (!pluginAccess.fileprocess.allowed) {
+                showError('FileProcess plugin required for uploads');
+                return;
+            }
+            handleFileSelection(e.dataTransfer.files);
+        });
+
+        fileInput.addEventListener('change', () => {
+            handleFileSelection(fileInput.files);
+            fileInput.value = '';
+        });
+    }
+
+    async function handleFileSelection(files) {
+        const tagsInput = document.getElementById('upload-tags').value;
+        const collectionName = document.getElementById('series-name').value;
+        const sequenceNumber = document.getElementById('book-number').value;
+
+        const tags = tagsInput ? tagsInput.split(',').map(t => t.trim()).filter(t => t) : [];
+
+        for (const file of files) {
+            addToUploadQueue(file, tags, collectionName, sequenceNumber);
+        }
+
+        processUploadQueue();
+    }
+
+    function addToUploadQueue(file, tags, collectionName, sequenceNumber) {
+        const item = {
+            id: generateId(),
+            file,
+            tags,
+            collectionName,
+            sequenceNumber: sequenceNumber ? parseInt(sequenceNumber) : undefined,
+            status: 'pending',
+            progress: 0
+        };
+
+        uploadQueue.push(item);
+        renderUploadQueue();
+    }
+
+    function renderUploadQueue() {
+        const queueEl = document.getElementById('upload-queue');
+        if (!queueEl) return;
+
+        if (uploadQueue.length === 0) {
+            queueEl.innerHTML = '';
+            return;
+        }
+
+        queueEl.innerHTML = uploadQueue.map(item => {
+            const icon = getFileIcon(item.file.name);
+            const statusText = {
+                pending: 'Waiting...',
+                uploading: 'Uploading...',
+                processing: 'Processing...',
+                completed: 'Completed',
+                failed: item.error || 'Failed'
+            }[item.status];
+
+            return `
+                <div class="upload-item">
+                    <span class="upload-item-icon">${icon}</span>
+                    <div class="upload-item-info">
+                        <div class="upload-item-name">${item.file.name}</div>
+                        <div class="upload-item-status">${statusText}</div>
+                        ${item.status === 'uploading' || item.status === 'processing' ? `
+                            <div class="upload-progress">
+                                <div class="upload-progress-bar" style="width: ${item.progress}%"></div>
+                            </div>
+                        ` : ''}
+                    </div>
+                    ${item.status === 'pending' ? `
+                        <button class="btn btn-secondary btn-sm" onclick="window.removeFromQueue('${item.id}')">Remove</button>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
+    }
+
+    function getFileIcon(filename) {
+        const ext = filename.split('.').pop().toLowerCase();
+        const icons = {
+            pdf: '📄', doc: '📄', docx: '📄', txt: '📄',
+            jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', svg: '🖼️',
+            mp4: '🎬', mov: '🎬', avi: '🎬', webm: '🎬',
+            mp3: '🎵', wav: '🎵', flac: '🎵',
+            zip: '📦', tar: '📦', gz: '📦', rar: '📦',
+            json: '📋', xml: '📋', csv: '📋',
+            las: '📍', laz: '📍', xyz: '📍'
+        };
+        return icons[ext] || '📎';
+    }
+
+    window.removeFromQueue = function(id) {
+        uploadQueue = uploadQueue.filter(item => item.id !== id);
+        renderUploadQueue();
+    };
+
+    async function processUploadQueue() {
+        const pendingItems = uploadQueue.filter(item => item.status === 'pending');
+
+        for (const item of pendingItems) {
+            item.status = 'uploading';
+            renderUploadQueue();
+
+            try {
+                const base64 = await readFileAsBase64(item.file);
+                item.progress = 50;
+                renderUploadQueue();
+
+                const result = await sendRequest('uploadDocument', {
+                    filename: item.file.name,
+                    content: base64,
+                    mimeType: item.file.type || 'application/octet-stream',
+                    tags: item.tags,
+                    collectionName: item.collectionName,
+                    sequenceNumber: item.sequenceNumber
+                });
+
+                if (result.success) {
+                    item.status = 'processing';
+                    item.jobId = result.jobId;
+                    item.progress = 75;
+                    renderUploadQueue();
+                    pollJobStatus(item);
+                } else {
+                    item.status = 'failed';
+                    item.error = result.error || 'Upload failed';
+                    renderUploadQueue();
+                }
+            } catch (error) {
+                item.status = 'failed';
+                item.error = error.message;
+                renderUploadQueue();
+            }
+        }
+    }
+
+    function readFileAsBase64(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => {
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+    }
+
+    async function pollJobStatus(item) {
+        const poll = async () => {
+            try {
+                const result = await sendRequest('getJobStatus', { jobId: item.jobId });
+                const job = result.job;
+
+                if (job.status === 'completed') {
+                    item.status = 'completed';
+                    item.progress = 100;
+                    renderUploadQueue();
+                    showSuccess(`${item.file.name} processed successfully`);
+                } else if (job.status === 'failed') {
+                    item.status = 'failed';
+                    item.error = job.error || 'Processing failed';
+                    renderUploadQueue();
+                } else {
+                    item.progress = job.progress || 75;
+                    renderUploadQueue();
+                    setTimeout(poll, 2000);
+                }
+            } catch (error) {
+                item.status = 'failed';
+                item.error = error.message;
+                renderUploadQueue();
+            }
+        };
+
+        poll();
+    }
+
+    // ========================================================================
+    // EXPLORE TAB (Visualizations & Code Intelligence)
     // ========================================================================
 
     function updateVizControls() {
@@ -227,23 +693,17 @@
         const layoutGroup = document.getElementById('layout-group');
         const queryGroup = document.getElementById('query-group');
 
-        // Show/hide controls based on viz type
-        filePathGroup.style.display = vizType === 'nlQuery' ? 'none' : 'block';
-        layoutGroup.style.display = vizType === 'dependencyGraph' ? 'block' : 'none';
-        queryGroup.style.display = vizType === 'nlQuery' ? 'block' : 'none';
+        if (filePathGroup) filePathGroup.style.display = vizType === 'nlQuery' ? 'none' : 'flex';
+        if (layoutGroup) layoutGroup.style.display = vizType === 'dependencyGraph' ? 'flex' : 'none';
+        if (queryGroup) queryGroup.style.display = vizType === 'nlQuery' ? 'flex' : 'none';
     }
 
     async function generateVisualization() {
         const vizType = document.getElementById('viz-type').value;
-        let filePath = document.getElementById('file-path').value;
-        const layoutAlgorithm = document.getElementById('layout-algorithm').value;
-        const nlQuery = document.getElementById('nl-query').value;
+        let filePath = document.getElementById('file-path').value || 'src/extension.ts';
+        const layoutAlgorithm = document.getElementById('layout-algorithm')?.value || 'force';
+        const nlQuery = document.getElementById('nl-query')?.value;
         const vizContainer = document.getElementById('viz-container');
-
-        // Auto-fill with current workspace if empty
-        if (!filePath) {
-            filePath = 'src/extension.ts'; // Default to extension entry point
-        }
 
         try {
             showLoading('Generating visualization...');
@@ -254,129 +714,109 @@
                     data = await sendRequest('getDependencyGraph', { filePath, layoutAlgorithm });
                     renderDependencyGraph(vizContainer, data);
                     break;
-
                 case 'evolutionTimeline':
                     data = await sendRequest('getEvolutionTimeline', { filePath });
-                    renderEvolutionTimeline(vizContainer, data);
+                    renderGenericResult(vizContainer, 'Evolution Timeline', data);
                     break;
-
                 case 'impactRipple':
                     data = await sendRequest('getImpactRipple', { filePath });
-                    renderImpactRipple(vizContainer, data);
+                    renderGenericResult(vizContainer, 'Impact Ripple', data);
                     break;
-
                 case 'semanticClusters':
                     data = await sendRequest('getSemanticClusters', { repositoryPath: filePath || '.' });
-                    renderSemanticClusters(vizContainer, data);
+                    renderGenericResult(vizContainer, 'Semantic Clusters', data);
                     break;
-
                 case 'architecture':
                     data = await sendRequest('analyzeArchitecture', { repositoryPath: filePath || '.' });
-                    renderArchitecture(vizContainer, data);
+                    renderGenericResult(vizContainer, 'Architecture Analysis', data);
                     break;
-
                 case 'nlQuery':
                     if (!nlQuery) {
-                        throw new Error('Please enter a natural language query');
+                        throw new Error('Please enter a query');
                     }
                     data = await sendRequest('nlQuery', { query: nlQuery, repositoryPath: filePath || '.' });
-                    renderNLQuery(vizContainer, data);
+                    renderGenericResult(vizContainer, 'Query Results', data);
                     break;
             }
 
             hideLoading();
         } catch (error) {
             hideLoading();
-            showError(error.message);
-            vizContainer.innerHTML = `
-                <div class="placeholder">
-                    <p>Error: ${error.message}</p>
-                </div>
-            `;
+            vizContainer.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
         }
     }
 
-    // ========================================================================
-    // D3.js Visualization Renderers
-    // ========================================================================
-
     function renderDependencyGraph(container, data) {
         if (!data.success || !data.graph) {
-            container.innerHTML = `<div class="error-message">Failed to load dependency graph: ${data.error || 'Unknown error'}</div>`;
+            container.innerHTML = `<div class="empty-state"><p>Failed to load graph: ${data.error || 'Unknown error'}</p></div>`;
             return;
         }
 
         const graph = data.graph;
         if (!graph.nodes || graph.nodes.length === 0) {
-            container.innerHTML = `<div class="placeholder"><p>No dependencies found for this file.</p></div>`;
+            container.innerHTML = `<div class="empty-state"><p>No dependencies found</p></div>`;
             return;
         }
 
         container.innerHTML = `
-            <div style="padding: 10px;">
-                <h3 style="margin-bottom: 10px;">Dependency Graph</h3>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 10px;">${graph.nodes.length} nodes, ${graph.edges.length} edges</p>
-                <div id="graph-svg-container" style="width: 100%; height: 500px; border: 1px solid var(--vscode-panel-border); border-radius: 4px; overflow: hidden;"></div>
+            <div style="padding: 16px;">
+                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 16px;">
+                    ${graph.nodes.length} nodes, ${graph.edges.length} edges
+                </p>
+                <div id="graph-svg-container" style="width: 100%; height: 400px; border: 1px solid var(--vscode-panel-border); border-radius: 8px;"></div>
             </div>
         `;
 
-        const svgContainer = document.getElementById('graph-svg-container');
-        const width = svgContainer.clientWidth;
-        const height = 500;
+        // Render with D3 if available
+        if (typeof d3 !== 'undefined') {
+            renderD3Graph(document.getElementById('graph-svg-container'), graph);
+        }
+    }
 
-        const svg = d3.select(svgContainer)
+    function renderD3Graph(container, graph) {
+        const width = container.clientWidth;
+        const height = 400;
+
+        const svg = d3.select(container)
             .append('svg')
             .attr('width', width)
             .attr('height', height);
 
-        // Color scale for node types
-        const colorScale = d3.scaleOrdinal()
-            .domain(['file', 'function', 'class', 'method', 'module'])
-            .range(['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8']);
-
-        // Create simulation
         const simulation = d3.forceSimulation(graph.nodes)
             .force('link', d3.forceLink(graph.edges).id(d => d.id).distance(80))
             .force('charge', d3.forceManyBody().strength(-200))
-            .force('center', d3.forceCenter(width / 2, height / 2))
-            .force('collision', d3.forceCollide().radius(30));
+            .force('center', d3.forceCenter(width / 2, height / 2));
 
-        // Draw edges
         const link = svg.append('g')
             .selectAll('line')
             .data(graph.edges)
-            .enter()
-            .append('line')
-            .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
-            .attr('stroke-opacity', 0.6)
-            .attr('stroke-width', 1.5);
+            .enter().append('line')
+            .attr('stroke', 'var(--vscode-panel-border)')
+            .attr('stroke-width', 1);
 
-        // Draw nodes
         const node = svg.append('g')
-            .selectAll('g')
+            .selectAll('circle')
             .data(graph.nodes)
-            .enter()
-            .append('g')
+            .enter().append('circle')
+            .attr('r', 6)
+            .attr('fill', 'var(--vscode-textLink-foreground)')
             .call(d3.drag()
-                .on('start', dragstarted)
-                .on('drag', dragged)
-                .on('end', dragended));
+                .on('start', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0.3).restart();
+                    d.fx = d.x;
+                    d.fy = d.y;
+                })
+                .on('drag', (event, d) => {
+                    d.fx = event.x;
+                    d.fy = event.y;
+                })
+                .on('end', (event, d) => {
+                    if (!event.active) simulation.alphaTarget(0);
+                    d.fx = null;
+                    d.fy = null;
+                }));
 
-        node.append('circle')
-            .attr('r', d => d.type === 'file' ? 12 : 8)
-            .attr('fill', d => colorScale(d.type || 'file'))
-            .attr('stroke', 'var(--vscode-editor-foreground)')
-            .attr('stroke-width', 1.5);
-
-        node.append('text')
-            .text(d => d.name ? d.name.split('/').pop().substring(0, 15) : '')
-            .attr('x', 15)
-            .attr('y', 4)
-            .attr('font-size', '11px')
-            .attr('fill', 'var(--vscode-editor-foreground)');
-
-        node.append('title')
-            .text(d => d.name || d.id);
+        node.append('title').text(d => d.label || d.id);
 
         simulation.on('tick', () => {
             link
@@ -385,571 +825,287 @@
                 .attr('x2', d => d.target.x)
                 .attr('y2', d => d.target.y);
 
-            node.attr('transform', d => `translate(${d.x},${d.y})`);
-        });
-
-        function dragstarted(event, d) {
-            if (!event.active) simulation.alphaTarget(0.3).restart();
-            d.fx = d.x;
-            d.fy = d.y;
-        }
-
-        function dragged(event, d) {
-            d.fx = event.x;
-            d.fy = event.y;
-        }
-
-        function dragended(event, d) {
-            if (!event.active) simulation.alphaTarget(0);
-            d.fx = null;
-            d.fy = null;
-        }
-    }
-
-    function renderEvolutionTimeline(container, data) {
-        if (!data.success || !data.timeline) {
-            container.innerHTML = `<div class="error-message">Failed to load timeline: ${data.error || 'Unknown error'}</div>`;
-            return;
-        }
-
-        const timeline = data.timeline;
-        const events = timeline.events || [];
-        const stats = timeline.statistics || {};
-
-        container.innerHTML = `
-            <div style="padding: 15px;">
-                <h3 style="margin-bottom: 10px;">Evolution Timeline</h3>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${timeline.entity.split('/').pop()}</p>
-
-                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px;">
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalCommits || 0}</div>
-                        <div class="stat-label">Commits</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalAuthors || 0}</div>
-                        <div class="stat-label">Authors</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">+${stats.totalLinesAdded || 0}</div>
-                        <div class="stat-label">Lines Added</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">-${stats.totalLinesRemoved || 0}</div>
-                        <div class="stat-label">Lines Removed</div>
-                    </div>
-                </div>
-
-                ${events.length === 0 ?
-                    '<p style="text-align: center; opacity: 0.7;">No commits found for this file in the selected time range.</p>' :
-                    `<div id="timeline-chart" style="width: 100%; height: 200px;"></div>
-                     <div id="timeline-events" style="max-height: 300px; overflow-y: auto; margin-top: 15px;"></div>`
-                }
-            </div>
-        `;
-
-        if (events.length > 0) {
-            // Render timeline chart
-            const chartContainer = document.getElementById('timeline-chart');
-            const width = chartContainer.clientWidth;
-            const height = 200;
-            const margin = { top: 20, right: 20, bottom: 30, left: 40 };
-
-            const svg = d3.select(chartContainer)
-                .append('svg')
-                .attr('width', width)
-                .attr('height', height);
-
-            const x = d3.scaleTime()
-                .domain(d3.extent(events, d => new Date(d.date)))
-                .range([margin.left, width - margin.right]);
-
-            const y = d3.scaleLinear()
-                .domain([0, d3.max(events, d => (d.linesAdded || 0) + (d.linesRemoved || 0))])
-                .range([height - margin.bottom, margin.top]);
-
-            // Bars
-            svg.selectAll('rect')
-                .data(events)
-                .enter()
-                .append('rect')
-                .attr('x', d => x(new Date(d.date)) - 5)
-                .attr('y', d => y((d.linesAdded || 0) + (d.linesRemoved || 0)))
-                .attr('width', 10)
-                .attr('height', d => height - margin.bottom - y((d.linesAdded || 0) + (d.linesRemoved || 0)))
-                .attr('fill', '#4fc3f7')
-                .attr('opacity', 0.8);
-
-            // X axis
-            svg.append('g')
-                .attr('transform', `translate(0,${height - margin.bottom})`)
-                .call(d3.axisBottom(x).ticks(5))
-                .attr('color', 'var(--vscode-editor-foreground)');
-
-            // Render event list
-            const eventsContainer = document.getElementById('timeline-events');
-            eventsContainer.innerHTML = events.slice(0, 20).map(e => `
-                <div style="padding: 8px; border-bottom: 1px solid var(--vscode-panel-border); font-size: 12px;">
-                    <div style="display: flex; justify-content: space-between;">
-                        <strong>${e.message ? e.message.substring(0, 50) : 'No message'}</strong>
-                        <span style="opacity: 0.7;">${new Date(e.date).toLocaleDateString()}</span>
-                    </div>
-                    <div style="opacity: 0.7; margin-top: 4px;">
-                        ${e.author || 'Unknown'} •
-                        <span style="color: #81c784;">+${e.linesAdded || 0}</span>
-                        <span style="color: #f06292;">-${e.linesRemoved || 0}</span>
-                    </div>
-                </div>
-            `).join('');
-        }
-    }
-
-    function renderImpactRipple(container, data) {
-        if (!data.success || !data.ripple) {
-            container.innerHTML = `<div class="error-message">Failed to load impact analysis: ${data.error || 'Unknown error'}</div>`;
-            return;
-        }
-
-        const ripple = data.ripple;
-        const layers = ripple.layers || [];
-
-        container.innerHTML = `
-            <div style="padding: 15px;">
-                <h3 style="margin-bottom: 10px;">Impact Ripple Analysis</h3>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">Source: ${ripple.sourceEntity}</p>
-                <div id="ripple-svg" style="width: 100%; height: 400px;"></div>
-                <div style="margin-top: 15px;">
-                    <h4>Impact Summary</h4>
-                    <p style="font-size: 12px; opacity: 0.8;">
-                        ${ripple.summary || `${layers.length} layers of impact detected.`}
-                    </p>
-                </div>
-            </div>
-        `;
-
-        const svgContainer = document.getElementById('ripple-svg');
-        const width = svgContainer.clientWidth;
-        const height = 400;
-        const centerX = width / 2;
-        const centerY = height / 2;
-
-        const svg = d3.select(svgContainer)
-            .append('svg')
-            .attr('width', width)
-            .attr('height', height);
-
-        // Draw concentric circles for layers
-        const maxRadius = Math.min(width, height) / 2 - 40;
-        const layerCount = Math.max(layers.length, 3);
-
-        for (let i = layerCount; i > 0; i--) {
-            svg.append('circle')
-                .attr('cx', centerX)
-                .attr('cy', centerY)
-                .attr('r', (i / layerCount) * maxRadius)
-                .attr('fill', 'none')
-                .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
-                .attr('stroke-opacity', 0.3)
-                .attr('stroke-dasharray', '4,4');
-        }
-
-        // Draw center node
-        svg.append('circle')
-            .attr('cx', centerX)
-            .attr('cy', centerY)
-            .attr('r', 15)
-            .attr('fill', '#f06292');
-
-        svg.append('text')
-            .attr('x', centerX)
-            .attr('y', centerY + 30)
-            .attr('text-anchor', 'middle')
-            .attr('font-size', '11px')
-            .attr('fill', 'var(--vscode-editor-foreground)')
-            .text('Source');
-
-        // Draw impacted nodes in each layer
-        layers.forEach((layer, layerIndex) => {
-            const radius = ((layerIndex + 1) / layerCount) * maxRadius;
-            const entities = layer.entities || [];
-
-            entities.forEach((entity, i) => {
-                const angle = (2 * Math.PI * i) / entities.length - Math.PI / 2;
-                const x = centerX + radius * Math.cos(angle);
-                const y = centerY + radius * Math.sin(angle);
-
-                svg.append('line')
-                    .attr('x1', centerX)
-                    .attr('y1', centerY)
-                    .attr('x2', x)
-                    .attr('y2', y)
-                    .attr('stroke', 'var(--vscode-editorLineNumber-foreground)')
-                    .attr('stroke-opacity', 0.3);
-
-                svg.append('circle')
-                    .attr('cx', x)
-                    .attr('cy', y)
-                    .attr('r', 8)
-                    .attr('fill', d3.interpolateBlues(1 - layerIndex / layerCount));
-
-                svg.append('title')
-                    .text(entity.name || entity.id);
-            });
+            node
+                .attr('cx', d => d.x)
+                .attr('cy', d => d.y);
         });
     }
 
-    function renderSemanticClusters(container, data) {
-        if (!data.success || !data.clusters) {
-            container.innerHTML = `<div class="error-message">Failed to load clusters: ${data.error || 'Unknown error'}</div>`;
-            return;
-        }
-
-        const clusters = data.clusters || [];
-
+    function renderGenericResult(container, title, data) {
         container.innerHTML = `
-            <div style="padding: 15px;">
-                <h3 style="margin-bottom: 10px;">Semantic Clusters</h3>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${clusters.length} clusters identified</p>
-                <div id="clusters-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px;"></div>
-            </div>
-        `;
-
-        const clustersContainer = document.getElementById('clusters-container');
-        const colors = ['#4fc3f7', '#81c784', '#ffb74d', '#f06292', '#ba68c8', '#4db6ac'];
-
-        clusters.forEach((cluster, i) => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.style.borderLeft = `4px solid ${colors[i % colors.length]}`;
-            card.innerHTML = `
-                <h4 style="margin-bottom: 8px;">${cluster.name || `Cluster ${i + 1}`}</h4>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 8px;">${cluster.description || 'No description'}</p>
-                <div style="font-size: 11px;">
-                    <strong>${(cluster.entities || []).length}</strong> entities
-                    ${cluster.cohesion ? ` • Cohesion: ${(cluster.cohesion * 100).toFixed(0)}%` : ''}
-                </div>
-                <div style="margin-top: 8px; font-size: 11px; opacity: 0.7;">
-                    ${(cluster.entities || []).slice(0, 5).map(e => e.name || e).join(', ')}
-                    ${(cluster.entities || []).length > 5 ? '...' : ''}
-                </div>
-            `;
-            clustersContainer.appendChild(card);
-        });
-
-        if (clusters.length === 0) {
-            clustersContainer.innerHTML = '<p style="opacity: 0.7;">No semantic clusters found. Try indexing the repository first.</p>';
-        }
-    }
-
-    function renderArchitecture(container, data) {
-        if (!data.success) {
-            container.innerHTML = `<div class="error-message">Failed to analyze architecture: ${data.error || 'Unknown error'}</div>`;
-            return;
-        }
-
-        const analysis = data.analysis || data;
-
-        container.innerHTML = `
-            <div style="padding: 15px;">
-                <h3 style="margin-bottom: 10px;">Architecture Analysis</h3>
-
-                ${analysis.patterns ? `
-                <div style="margin-bottom: 20px;">
-                    <h4>Detected Patterns</h4>
-                    <div style="display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;">
-                        ${(analysis.patterns || []).map(p => `
-                            <span style="background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); padding: 4px 8px; border-radius: 4px; font-size: 11px;">
-                                ${p.name || p}
-                            </span>
-                        `).join('')}
-                    </div>
-                </div>
-                ` : ''}
-
-                ${analysis.layers ? `
-                <div style="margin-bottom: 20px;">
-                    <h4>Architecture Layers</h4>
-                    ${(analysis.layers || []).map((layer, i) => `
-                        <div style="margin-top: 8px; padding: 10px; background: var(--vscode-editor-background); border-radius: 4px;">
-                            <strong>${layer.name || `Layer ${i + 1}`}</strong>
-                            <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
-                                ${layer.description || `${(layer.components || []).length} components`}
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
-
-                ${analysis.recommendations ? `
-                <div>
-                    <h4>Recommendations</h4>
-                    <ul style="margin-top: 8px; padding-left: 20px; font-size: 12px;">
-                        ${(analysis.recommendations || []).map(r => `<li style="margin-bottom: 4px;">${r}</li>`).join('')}
-                    </ul>
-                </div>
-                ` : ''}
-
-                ${!analysis.patterns && !analysis.layers && !analysis.recommendations ? `
-                <pre style="font-size: 11px; overflow: auto;">${JSON.stringify(data, null, 2)}</pre>
-                ` : ''}
+            <div style="padding: 16px;">
+                <h3 style="margin-bottom: 12px;">${title}</h3>
+                <pre style="background: var(--vscode-textCodeBlock-background); padding: 12px; border-radius: 4px; overflow: auto; max-height: 350px; font-size: 11px;">${JSON.stringify(data, null, 2)}</pre>
             </div>
         `;
     }
 
-    function renderNLQuery(container, data) {
-        if (!data.success) {
-            container.innerHTML = `<div class="error-message">Query failed: ${data.error || 'Unknown error'}</div>`;
-            return;
-        }
-
-        const results = data.results || [];
-
-        container.innerHTML = `
-            <div style="padding: 15px;">
-                <h3 style="margin-bottom: 10px;">Query Results</h3>
-                <p style="font-size: 12px; opacity: 0.7; margin-bottom: 15px;">${results.length} results found</p>
-                <div id="query-results"></div>
-            </div>
-        `;
-
-        const resultsContainer = document.getElementById('query-results');
-
-        if (results.length === 0) {
-            resultsContainer.innerHTML = '<p style="opacity: 0.7;">No results found. Try a different query or index the repository first.</p>';
-            return;
-        }
-
-        results.forEach(result => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.style.marginBottom = '10px';
-            card.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: start;">
-                    <strong>${result.entity?.name || result.name || 'Unknown'}</strong>
-                    <span style="font-size: 11px; opacity: 0.7;">${((result.score || 0) * 100).toFixed(0)}% match</span>
-                </div>
-                <div style="font-size: 11px; opacity: 0.7; margin: 4px 0;">
-                    ${result.entity?.type || result.type || 'entity'}
-                    ${result.entity?.sourceFile ? `• ${result.entity.sourceFile}` : ''}
-                </div>
-                ${result.explanation ? `<p style="font-size: 12px; margin-top: 8px;">${result.explanation}</p>` : ''}
-                ${result.entity?.content ? `
-                    <pre style="font-size: 10px; margin-top: 8px; padding: 8px; background: var(--vscode-editor-background); border-radius: 4px; overflow: auto; max-height: 150px;">${escapeHtml(result.entity.content.substring(0, 500))}${result.entity.content.length > 500 ? '...' : ''}</pre>
-                ` : ''}
-            `;
-            resultsContainer.appendChild(card);
-        });
+    async function useSelection() {
+        vscode.postMessage({ type: 'getSelection' });
     }
-
-    // ========================================================================
-    // Code Intelligence Tab
-    // ========================================================================
 
     async function explainCode() {
-        const codeInput = document.getElementById('code-input').value;
-        if (!codeInput) {
-            showError('Please enter code to explain');
+        const code = document.getElementById('code-input').value;
+        const resultsEl = document.getElementById('intelligence-results');
+
+        if (!code.trim()) {
+            showError('Please enter code or use selection');
             return;
         }
 
-        const resultsEl = document.getElementById('intelligence-results');
         try {
             showLoading('Analyzing code...');
-            const data = await sendRequest('explainCode', { code: codeInput });
+            const result = await sendRequest('explainCode', { code });
             hideLoading();
-
-            resultsEl.innerHTML = `
-                <div>
-                    <h3 style="margin-bottom: 12px;">Code Explanation</h3>
-                    <div style="background-color: var(--vscode-textCodeBlock-background); padding: 16px; border-radius: 4px; margin-bottom: 16px;">
-                        ${formatMarkdown(data.explanation)}
-                    </div>
-                </div>
-            `;
+            resultsEl.innerHTML = `<div style="padding: 16px; white-space: pre-wrap;">${result.explanation || JSON.stringify(result, null, 2)}</div>`;
         } catch (error) {
             hideLoading();
-            showError(error.message);
+            resultsEl.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
         }
     }
 
     async function analyzeImpact() {
-        // Get active file path (placeholder)
-        showError('Please use the Visualizations tab for impact analysis');
-    }
+        const code = document.getElementById('code-input').value;
+        const resultsEl = document.getElementById('intelligence-results');
 
-    async function viewHistory() {
-        // Get active file path (placeholder)
-        showError('Please use the Visualizations tab for file history');
-    }
-
-    function useSelection() {
-        // Request selected text from extension
-        vscode.postMessage({ type: 'executeCommand', command: 'nexus.getSelection', args: [] });
-    }
-
-    // ========================================================================
-    // Security & Testing Tab
-    // ========================================================================
-
-    async function runSecurityScan() {
-        const repoPath = document.getElementById('repo-path').value;
-        if (!repoPath) {
-            showError('Please enter a repository path');
+        if (!code.trim()) {
+            showError('Please enter code or use selection');
             return;
         }
 
-        const resultsEl = document.getElementById('security-results');
         try {
-            showLoading('Scanning for vulnerabilities...');
-            const data = await sendRequest('securityScan', { repositoryPath: repoPath });
+            showLoading('Analyzing impact...');
+            const result = await sendRequest('analyzeImpact', { code });
             hideLoading();
-
-            if (data.totalVulnerabilities === 0) {
-                resultsEl.innerHTML = `
-                    <div class="placeholder">
-                        <p>✅ No vulnerabilities found!</p>
-                    </div>
-                `;
-                return;
-            }
-
-            let html = `<h3>Found ${data.totalVulnerabilities} Vulnerabilities</h3>`;
-
-            for (const report of data.reports) {
-                if (report.vulnerabilities.length === 0) continue;
-
-                html += `
-                    <div class="card" style="margin-top: 16px;">
-                        <h4>${report.dependency.name}@${report.dependency.version}</h4>
-                        <p style="font-size: 12px; opacity: 0.8; margin: 8px 0;">${report.dependency.ecosystem} - ${report.dependency.filePath}</p>
-                `;
-
-                for (const vuln of report.vulnerabilities) {
-                    html += `
-                        <div style="margin-top: 12px; padding: 12px; background-color: var(--vscode-editor-background); border-left: 3px solid ${getSeverityColor(vuln.severity)};">
-                            <span class="vulnerability-badge ${vuln.severity.toLowerCase()}">${vuln.severity}</span>
-                            <h5 style="margin: 8px 0;">${vuln.summary}</h5>
-                            ${vuln.details ? `<p style="font-size: 12px; margin: 8px 0;">${vuln.details}</p>` : ''}
-                            ${vuln.fixedVersions && vuln.fixedVersions.length > 0 ? `<p style="font-size: 12px; margin: 8px 0;"><strong>Fixed in:</strong> ${vuln.fixedVersions.join(', ')}</p>` : ''}
-                        </div>
-                    `;
-                }
-
-                html += '</div>';
-            }
-
-            resultsEl.innerHTML = html;
+            resultsEl.innerHTML = `<div style="padding: 16px;"><pre style="white-space: pre-wrap;">${JSON.stringify(result, null, 2)}</pre></div>`;
         } catch (error) {
             hideLoading();
-            showError(error.message);
+            resultsEl.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+        }
+    }
+
+    async function viewHistory() {
+        const resultsEl = document.getElementById('intelligence-results');
+
+        try {
+            showLoading('Loading history...');
+            const result = await sendRequest('getFileHistory', {});
+            hideLoading();
+            resultsEl.innerHTML = `<div style="padding: 16px;"><pre style="white-space: pre-wrap;">${JSON.stringify(result, null, 2)}</pre></div>`;
+        } catch (error) {
+            hideLoading();
+            resultsEl.innerHTML = `<div class="empty-state"><p>Error: ${error.message}</p></div>`;
+        }
+    }
+
+    async function runSecurityScan() {
+        const repoPath = document.getElementById('repo-path').value;
+        const resultsEl = document.getElementById('security-results');
+
+        try {
+            showLoading('Running security scan...');
+            const result = await sendRequest('runSecurityScan', { repositoryPath: repoPath || '.' });
+            hideLoading();
+            resultsEl.innerHTML = `<pre style="font-size: 11px; white-space: pre-wrap;">${JSON.stringify(result, null, 2)}</pre>`;
+        } catch (error) {
+            hideLoading();
+            resultsEl.innerHTML = `<p style="color: var(--danger-color);">Error: ${error.message}</p>`;
         }
     }
 
     async function generateTests() {
-        const testCodeInput = document.getElementById('test-code-input').value;
+        const code = document.getElementById('test-code-input').value;
         const framework = document.getElementById('test-framework').value;
+        const resultsEl = document.getElementById('test-results');
 
-        if (!testCodeInput) {
-            showError('Please enter code to generate tests for');
+        if (!code.trim()) {
+            showError('Please enter code to test');
             return;
         }
 
-        const resultsEl = document.getElementById('test-results');
         try {
             showLoading('Generating tests...');
-            const data = await sendRequest('generateTests', { code: testCodeInput, framework });
+            const result = await sendRequest('generateTests', { code, framework });
             hideLoading();
-
-            resultsEl.innerHTML = `
-                <div>
-                    <h3 style="margin-bottom: 12px;">Generated Tests (${data.framework})</h3>
-                    <pre style="max-height: 500px; overflow-y: auto;">${escapeHtml(data.tests)}</pre>
-                    <button class="secondary-button" style="margin-top: 12px;" onclick="window.copyTests()">Copy Tests</button>
-                </div>
-            `;
-
-            // Store tests for copy function
-            window.generatedTests = data.tests;
+            resultsEl.innerHTML = `<pre style="font-size: 11px; white-space: pre-wrap;">${result.tests || JSON.stringify(result, null, 2)}</pre>`;
         } catch (error) {
             hideLoading();
-            showError(error.message);
+            resultsEl.innerHTML = `<p style="color: var(--danger-color);">Error: ${error.message}</p>`;
         }
     }
 
-    window.copyTests = function() {
-        if (window.generatedTests) {
-            navigator.clipboard.writeText(window.generatedTests);
-            showError('Tests copied to clipboard!'); // Using error toast for notifications
+    // ========================================================================
+    // SETTINGS TAB
+    // ========================================================================
+
+    async function loadSettingsTab() {
+        await Promise.all([
+            loadAccountInfo(),
+            loadSubscriptions()
+        ]);
+    }
+
+    async function loadAccountInfo() {
+        const avatarEl = document.getElementById('account-avatar');
+        const emailEl = document.getElementById('account-email');
+        const tierEl = document.getElementById('account-tier');
+
+        try {
+            const user = await sendRequest('getCurrentUser', {});
+            currentUser = user;
+
+            if (user && user.email) {
+                const initials = user.email.substring(0, 2).toUpperCase();
+                if (avatarEl) avatarEl.textContent = initials;
+                if (emailEl) emailEl.textContent = user.email;
+                if (tierEl) tierEl.textContent = user.tier ? `${user.tier} Plan` : 'Free Plan';
+            } else {
+                if (avatarEl) avatarEl.textContent = '?';
+                if (emailEl) emailEl.textContent = 'Not connected';
+                if (tierEl) tierEl.textContent = 'Configure API key to connect';
+            }
+        } catch (error) {
+            if (avatarEl) avatarEl.textContent = '!';
+            if (emailEl) emailEl.textContent = 'Error loading account';
+            if (tierEl) tierEl.textContent = error.message;
         }
+    }
+
+    async function loadSubscriptions() {
+        const subsEl = document.getElementById('subscriptions-list');
+        if (!subsEl) return;
+
+        try {
+            const subscription = await sendRequest('getUserSubscription', {});
+
+            if (subscription && subscription.plugins && subscription.plugins.length > 0) {
+                subsEl.innerHTML = subscription.plugins.map(plugin => `
+                    <div class="subscription-card ${plugin.subscribed ? 'active' : ''}">
+                        <div class="plugin-name">${plugin.pluginName}</div>
+                        <div class="plugin-tier">${plugin.tier || 'Free'}</div>
+                        <span class="status-badge ${plugin.subscribed ? 'active' : 'inactive'}">
+                            ${plugin.subscribed ? 'Active' : 'Inactive'}
+                        </span>
+                    </div>
+                `).join('');
+            } else {
+                subsEl.innerHTML = '<div class="empty-state small"><p>No subscriptions found</p></div>';
+            }
+        } catch (error) {
+            subsEl.innerHTML = `<div class="empty-state small"><p>Error: ${error.message}</p></div>`;
+        }
+    }
+
+    function configureApi() {
+        vscode.postMessage({ type: 'executeCommand', command: 'nexus.configure', args: [] });
+    }
+
+    function clearLocalData() {
+        if (confirm('Are you sure you want to clear all local data?')) {
+            vscode.postMessage({ type: 'executeCommand', command: 'nexus.clearLocalData', args: [] });
+            showSuccess('Local data cleared');
+        }
+    }
+
+    function resetConfig() {
+        if (confirm('Are you sure you want to reset all configuration?')) {
+            vscode.postMessage({ type: 'executeCommand', command: 'nexus.resetConfig', args: [] });
+            showSuccess('Configuration reset');
+        }
+    }
+
+    function addApiKey() {
+        vscode.postMessage({ type: 'executeCommand', command: 'nexus.configure', args: [] });
+    }
+
+    // ========================================================================
+    // EVENT LISTENERS
+    // ========================================================================
+
+    document.addEventListener('DOMContentLoaded', () => {
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => showTab(tab.dataset.tab));
+        });
+
+        // Action cards (quick actions)
+        document.querySelectorAll('.action-card').forEach(card => {
+            card.addEventListener('click', () => {
+                const action = card.dataset.action;
+                vscode.postMessage({ type: 'executeCommand', command: `nexus.${action}`, args: [] });
+            });
+        });
+
+        // Memory tab buttons
+        const storeMemoryBtn = document.getElementById('store-memory-btn');
+        if (storeMemoryBtn) storeMemoryBtn.addEventListener('click', storeMemoryFromForm);
+
+        const searchMemoriesBtn = document.getElementById('search-memories-btn');
+        if (searchMemoriesBtn) searchMemoriesBtn.addEventListener('click', searchMemories);
+
+        const loadEpisodesBtn = document.getElementById('load-episodes-btn');
+        if (loadEpisodesBtn) loadEpisodesBtn.addEventListener('click', loadEpisodes);
+
+        const addSkillBtn = document.getElementById('add-skill-btn');
+        if (addSkillBtn) addSkillBtn.addEventListener('click', () => {
+            vscode.postMessage({ type: 'executeCommand', command: 'nexus.addSkill', args: [] });
+        });
+
+        // Explore tab buttons
+        const vizTypeSelect = document.getElementById('viz-type');
+        if (vizTypeSelect) vizTypeSelect.addEventListener('change', updateVizControls);
+
+        const generateVizBtn = document.getElementById('generate-viz');
+        if (generateVizBtn) generateVizBtn.addEventListener('click', generateVisualization);
+
+        const useSelectionBtn = document.getElementById('use-selection');
+        if (useSelectionBtn) useSelectionBtn.addEventListener('click', useSelection);
+
+        const explainCodeBtn = document.getElementById('explain-code');
+        if (explainCodeBtn) explainCodeBtn.addEventListener('click', explainCode);
+
+        const analyzeImpactBtn = document.getElementById('analyze-impact');
+        if (analyzeImpactBtn) analyzeImpactBtn.addEventListener('click', analyzeImpact);
+
+        const viewHistoryBtn = document.getElementById('view-history');
+        if (viewHistoryBtn) viewHistoryBtn.addEventListener('click', viewHistory);
+
+        const runSecurityScanBtn = document.getElementById('run-security-scan');
+        if (runSecurityScanBtn) runSecurityScanBtn.addEventListener('click', runSecurityScan);
+
+        const generateTestsBtn = document.getElementById('generate-tests');
+        if (generateTestsBtn) generateTestsBtn.addEventListener('click', generateTests);
+
+        // Settings tab buttons
+        const configureApiBtn = document.getElementById('configure-api-btn');
+        if (configureApiBtn) configureApiBtn.addEventListener('click', configureApi);
+
+        const addApiKeyBtn = document.getElementById('add-api-key-btn');
+        if (addApiKeyBtn) addApiKeyBtn.addEventListener('click', addApiKey);
+
+        const clearLocalDataBtn = document.getElementById('clear-local-data');
+        if (clearLocalDataBtn) clearLocalDataBtn.addEventListener('click', clearLocalData);
+
+        const resetConfigBtn = document.getElementById('reset-config');
+        if (resetConfigBtn) resetConfigBtn.addEventListener('click', resetConfig);
+
+        // Setup upload handlers
+        setupUploadHandlers();
+
+        // Initialize viz controls
+        updateVizControls();
+
+        // Load initial tab data
+        loadHomeTab();
+    });
+
+    // Global function exports
+    window.showTab = showTab;
+    window.toggleSection = window.toggleSection;
+    window.removeFromQueue = window.removeFromQueue;
+    window.configureAPI = configureApi;
+    window.browseMarketplace = () => {
+        vscode.postMessage({ type: 'openExternal', url: 'https://dashboard.adverant.ai/dashboard/plugins' });
     };
 
-    // ========================================================================
-    // Utilities
-    // ========================================================================
-
-    function getSeverityColor(severity) {
-        const colors = {
-            CRITICAL: '#d32f2f',
-            HIGH: '#f57c00',
-            MEDIUM: '#fbc02d',
-            LOW: '#7cb342',
-            UNKNOWN: '#757575'
-        };
-        return colors[severity] || colors.UNKNOWN;
-    }
-
-    function formatMarkdown(text) {
-        // Simple markdown formatting (could be enhanced)
-        return text
-            .replace(/\n/g, '<br>')
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-    }
-
-    function escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
-    }
-
-    // ========================================================================
-    // Event Listeners
-    // ========================================================================
-
-    // Tab switching
-    document.querySelectorAll('.tab').forEach(tab => {
-        tab.addEventListener('click', () => {
-            showTab(tab.dataset.tab);
-        });
-    });
-
-    // Dashboard actions
-    document.querySelectorAll('.action-card').forEach(card => {
-        card.addEventListener('click', () => {
-            const action = card.dataset.action;
-            vscode.postMessage({ type: 'executeCommand', command: `nexus.${action}`, args: [] });
-        });
-    });
-
-    // Visualization controls
-    document.getElementById('viz-type').addEventListener('change', updateVizControls);
-    document.getElementById('generate-viz').addEventListener('click', generateVisualization);
-
-    // Code Intelligence
-    document.getElementById('use-selection').addEventListener('click', useSelection);
-    document.getElementById('explain-code').addEventListener('click', explainCode);
-    document.getElementById('analyze-impact').addEventListener('click', analyzeImpact);
-    document.getElementById('view-history').addEventListener('click', viewHistory);
-
-    // Security & Testing
-    document.getElementById('run-security-scan').addEventListener('click', runSecurityScan);
-    document.getElementById('generate-tests').addEventListener('click', generateTests);
-
-    // Error toast close button
-    document.getElementById('close-error').addEventListener('click', () => {
-        document.getElementById('error-toast').style.display = 'none';
-    });
-
-    // Initialize: Load dashboard on start
-    loadDashboard();
 })();

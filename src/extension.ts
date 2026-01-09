@@ -8,6 +8,8 @@ import * as vscode from 'vscode';
 import { GraphRAGClient } from './clients/graphrag-client';
 import { NexusChatClient } from './clients/nexus-chat-client';
 import { MageAgentClient } from './clients/mageagent-client';
+import { SubscriptionClient } from './clients/subscription-client';
+import { FileProcessClient } from './clients/fileprocess-client';
 import { TreeSitterService } from './parsers/tree-sitter-service';
 import { GitService } from './git/git-service';
 import { MemoriesViewProvider } from './views/memories-view-provider';
@@ -73,6 +75,14 @@ export async function activate(context: vscode.ExtensionContext) {
   const graphragClient = new GraphRAGClient(apiEndpoint, apiKey || '', companyId, appId);
   const chatClient = new NexusChatClient(apiEndpoint, apiKey || '');
   const mageAgentClient = new MageAgentClient(mageAgentEndpoint, apiKey || ''); // Keep for VisualizationHandler compatibility
+  const subscriptionClient = new SubscriptionClient(apiEndpoint, apiKey || '', companyId);
+  const fileProcessClient = new FileProcessClient(
+    apiEndpoint,
+    apiEndpoint.replace('https://', 'wss://').replace('http://', 'ws://'),
+    apiKey || '',
+    companyId,
+    appId
+  );
 
   // Initialize services
   const treeSitterService = new TreeSitterService();
@@ -86,6 +96,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   // Initialize WebView Panel Manager with chat client for intelligent routing
   const messageRouter = new MessageRouter(context, graphragClient, visualizationHandler, chatClient);
+  messageRouter.setSubscriptionClient(subscriptionClient);
+  messageRouter.setFileProcessClient(fileProcessClient);
   WebViewPanelManager.initialize(context, messageRouter);
 
   // Store clients in context for commands to access

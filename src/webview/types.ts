@@ -98,6 +98,82 @@ export const StoreMemoryParamsSchema = z.object({
   entityType: z.string().optional(),
 });
 
+// Memory Tab Command Schemas
+export const UploadDocumentParamsSchema = z.object({
+  filename: z.string(),
+  content: z.string(), // base64 encoded
+  mimeType: z.string(),
+  tags: z.array(z.string()).optional(),
+  metadata: z.record(z.unknown()).optional(),
+  collectionName: z.string().optional(), // Group files together (dataset, scan batch, etc.)
+  sequenceNumber: z.number().optional(), // Order within collection
+});
+
+export const SearchMemoriesParamsSchema = z.object({
+  query: z.string(),
+  filters: z.object({
+    domain: z.string().optional(),
+    type: z.string().optional(),
+    dateRange: z.object({
+      start: z.string().optional(),
+      end: z.string().optional(),
+    }).optional(),
+    tags: z.array(z.string()).optional(),
+    projectName: z.string().optional(),
+  }).optional(),
+  limit: z.number().optional(),
+  offset: z.number().optional(),
+});
+
+export const GetEpisodicDataParamsSchema = z.object({
+  entityId: z.string().optional(),
+  timeRange: z.object({
+    start: z.string().optional(),
+    end: z.string().optional(),
+  }).optional(),
+  limit: z.number().optional(),
+});
+
+export const ListSkillsParamsSchema = z.object({});
+
+export const ManageSkillParamsSchema = z.object({
+  action: z.enum(['add', 'remove', 'view', 'update']),
+  skillName: z.string(),
+  content: z.string().optional(),
+});
+
+export const ListHooksParamsSchema = z.object({});
+
+export const GetJobStatusParamsSchema = z.object({
+  jobId: z.string(),
+});
+
+// Subscription/Plugin Access Schemas
+export const CheckPluginAccessParamsSchema = z.object({
+  pluginName: z.string(),
+  action: z.string().optional(),
+});
+
+export const GetUserSubscriptionParamsSchema = z.object({});
+
+export const GetMarketplacePluginsParamsSchema = z.object({
+  category: z.string().optional(),
+});
+
+// Settings Tab - User & API Key Schemas
+export const GetCurrentUserParamsSchema = z.object({});
+
+export const GetApiKeysParamsSchema = z.object({});
+
+export const CreateApiKeyParamsSchema = z.object({
+  name: z.string(),
+  expiresInDays: z.number().optional(),
+});
+
+export const RevokeApiKeyParamsSchema = z.object({
+  keyId: z.string(),
+});
+
 // Command types
 export type CommandType =
   | 'getDependencyGraph'
@@ -114,7 +190,24 @@ export type CommandType =
   | 'getApiStatus'
   | 'getRecentMemories'
   | 'getRepoStats'
-  | 'storeMemory';
+  | 'storeMemory'
+  // Memory Tab Commands
+  | 'uploadDocument'
+  | 'searchMemories'
+  | 'getEpisodicData'
+  | 'listSkills'
+  | 'manageSkill'
+  | 'listHooks'
+  | 'getJobStatus'
+  // Subscription Commands
+  | 'checkPluginAccess'
+  | 'getUserSubscription'
+  | 'getMarketplacePlugins'
+  // Settings Tab Commands
+  | 'getCurrentUser'
+  | 'getApiKeys'
+  | 'createApiKey'
+  | 'revokeApiKey';
 
 // Map commands to their parameter schemas
 export const CommandSchemas: Record<CommandType, z.ZodSchema> = {
@@ -133,4 +226,21 @@ export const CommandSchemas: Record<CommandType, z.ZodSchema> = {
   getRecentMemories: GetRecentMemoriesParamsSchema,
   getRepoStats: GetRepoStatsParamsSchema,
   storeMemory: StoreMemoryParamsSchema,
+  // Memory Tab Commands
+  uploadDocument: UploadDocumentParamsSchema,
+  searchMemories: SearchMemoriesParamsSchema,
+  getEpisodicData: GetEpisodicDataParamsSchema,
+  listSkills: ListSkillsParamsSchema,
+  manageSkill: ManageSkillParamsSchema,
+  listHooks: ListHooksParamsSchema,
+  getJobStatus: GetJobStatusParamsSchema,
+  // Subscription Commands
+  checkPluginAccess: CheckPluginAccessParamsSchema,
+  getUserSubscription: GetUserSubscriptionParamsSchema,
+  getMarketplacePlugins: GetMarketplacePluginsParamsSchema,
+  // Settings Tab Commands
+  getCurrentUser: GetCurrentUserParamsSchema,
+  getApiKeys: GetApiKeysParamsSchema,
+  createApiKey: CreateApiKeyParamsSchema,
+  revokeApiKey: RevokeApiKeyParamsSchema,
 };
