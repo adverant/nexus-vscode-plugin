@@ -231,7 +231,7 @@
     "tree-sitter-go": "^0.25.0",
     "tree-sitter-java": "^0.23.5",
     "tree-sitter-python": "^0.25.0",
-    "tree-sitter-rust": "^0.21.0",
+    "tree-sitter-rust": "^0.24.0",
     "tree-sitter-typescript": "^0.23.2",
     "uuid": "^9.0.1",
     "zod": "^3.25.76"
