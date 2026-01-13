@@ -233,7 +233,7 @@
     "tree-sitter-python": "^0.25.0",
     "tree-sitter-rust": "^0.21.0",
     "tree-sitter-typescript": "^0.23.2",
-    "uuid": "^9.0.1",
+    "uuid": "^13.0.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
